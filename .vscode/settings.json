@@ -1,0 +1,8 @@
+{
+  "explorer.excludeGitIgnore": true,
+
+  "files.exclude": {
+    "Cargo.lock": true,
+    "LICENSE": true,
+  }
+}
