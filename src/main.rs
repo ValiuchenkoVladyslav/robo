@@ -23,6 +23,10 @@ fn main() -> result::Result {
   let args = args::Args::parse();
   let app_state = AppState::load(args.token)?;
 
+  // create runtime for async tasks
+  let rt = tokio::runtime::Runtime::new()?;
+  let _enter = rt.enter();
+
   eframe::run_native(
     "Robo AI Chat",
     eframe::NativeOptions::default(),

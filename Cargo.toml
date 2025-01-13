@@ -4,13 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
 eframe = { version = "0.30.0", default-features = false, features = ["accesskit", "default_fonts", "glow"] }
-async-openai = "0.27.1"
-dirs = "5.0.1"
-bincode = "1.3.3"
-serde = "1.0.217"
-thiserror = "2.0.11"
 clap = { version = "4.5.18", features = ["derive"] }
+async-openai = "0.27.1"
+serde = "1.0.217"
+bincode = "1.3.3"
+thiserror = "2.0.11"
+dirs = "5.0.1"
 
 [profile.release]
 codegen-units = 1
