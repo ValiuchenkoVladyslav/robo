@@ -21,21 +21,7 @@ impl eframe::App for AppState {
 
 fn main() -> result::Result {
   let args = args::Args::parse();
-  let mut app_state = AppState::load().unwrap_or_default();
-
-  if let Some(token) = args.token {
-    app_state.openai_token = token;
-  } else if app_state.openai_token.is_empty() {
-    #[cfg(not(target_os = "windows"))]
-    eprintln!("OpenAI API token is required on first run!");
-
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd")
-      .args(["/C", "echo OpenAI API token is required on first run!", "&&", "pause"])
-      .spawn()?;
-
-    return Ok(());
-  }
+  let app_state = AppState::load(args.token)?;
 
   eframe::run_native(
     "Robo AI Chat",
