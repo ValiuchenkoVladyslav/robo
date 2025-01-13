@@ -4,7 +4,7 @@ pub enum Error {
   Io(#[from] std::io::Error),
 
   #[error("Bincode error: {0}")]
-  BincodeError(#[from] bincode::Error),
+  Bincode(#[from] bincode::Error),
 
   #[error("UI error: {0}")]
   Ui(#[from] eframe::Error),
