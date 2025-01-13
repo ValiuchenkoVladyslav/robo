@@ -1,35 +1,65 @@
-use eframe::egui::{self, Context, RichText};
-use crate::state::AppState;
+use eframe::egui::*;
+use crate::{state::AppState, ui::utils::DARKER};
+
+const SIDEBAR_OPTION_MIN_SIZE: Vec2 = vec2(0.0, 28.0);
+const SIDEBAR_OPTION_ROUNDING: Rounding = Rounding::same(6.0);
+
+pub fn new_chat_btn(ui: &mut Ui, state: &mut AppState) {
+  let btn = Button::new(RichText::new("➕ New Chat").size(20.0).strong())
+    .min_size(SIDEBAR_OPTION_MIN_SIZE)
+    .rounding(SIDEBAR_OPTION_ROUNDING)
+    .ui(ui);
+
+  if btn.clicked() {
+    state.active_chat = None;
+  }
+}
+
+fn chats_list(ui: &mut Ui, state: &mut AppState) {
+  for (i, chat) in state.chats.iter().enumerate() {
+    Frame::default()
+      .inner_margin(Margin::symmetric(0.0, 2.0))
+      .show(ui, |ui| {
+        // TODO: show last msg on hover; use Text Layout
+        let widgets = &mut ui.visuals_mut().widgets;
+
+        widgets.inactive.weak_bg_fill =
+          if Some(i) == state.active_chat {
+            DARKER
+          } else {
+            Color32::TRANSPARENT
+          };
+        widgets.active.weak_bg_fill = DARKER;
+        widgets.hovered.weak_bg_fill = DARKER;
+
+        let chat_btn = Button::new(RichText::new(chat).size(16.0))
+          .min_size(SIDEBAR_OPTION_MIN_SIZE)
+          .rounding(SIDEBAR_OPTION_ROUNDING)
+          .stroke(Stroke::NONE)
+          .ui(ui);
+
+        if chat_btn.clicked() {
+          state.active_chat = Some(i);
+        }
+      });
+  }    
+}
 
 pub fn sidebar(state: &mut AppState, ctx: &Context) {
-  egui::SidePanel::left("left-panel").resizable(false).show(ctx, |ui| {
-    ui.vertical_centered_justified(|ui| {
-      if ui.button(RichText::new("➕ New Chat").size(20.0)).clicked() {
-        state.chats.push("New Chat".to_string());
-      }
-      // let egui_icon = egui::include_image!("../../data/icon.png");
-      // ui.add(egui::Image::new(egui_icon.clone()));
-      // ui.end_row();
+  SidePanel::left("sidebar")
+    .resizable(false)
+    .show_separator_line(false)
+    .show(ctx, |ui| {
+      ui.vertical_centered_justified(|ui| {
+        // create new chat button
+        Frame::default()
+          .inner_margin(Margin::symmetric(0.0, 6.0))
+          .show(ui, |ui| new_chat_btn(ui, state));
 
-      // ui.add(doc_link_label(
-      //     "Button with image",
-      //     "Button::image_and_text",
-      // ));
-      // if ui
-      //     .add(egui::Button::image_and_text(egui_icon, "Click me!"))
-      //     .clicked()
-      // {
-      //     *boolean = !*boolean;
-      // }
-      // ui.end_row();
-      egui::ScrollArea::vertical()
-        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
-        .show(ui, |ui| {
-          for chat in state.chats.iter() {
-            // TODO: show last msg on hover; use Text Layout
-            let _ = ui.button(RichText::new(chat).size(16.0));
-          }
-        });
+        // list of chats
+        ScrollArea::vertical()
+          .scroll_bar_visibility(scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
+          .show(ui, |ui| chats_list(ui, state));
+      });
     });
-  });
 }
