@@ -5,6 +5,9 @@ pub enum Error {
 
   #[error("Bincode error: {0}")]
   BincodeError(#[from] bincode::Error),
+
+  #[error("UI error: {0}")]
+  Ui(#[from] eframe::Error),
 }
 
 pub type Result<T=()> = core::result::Result<T, Error>;
