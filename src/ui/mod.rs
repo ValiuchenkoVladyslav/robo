@@ -1,22 +1,19 @@
+mod utils;
 mod sidebar;
+mod chat;
+mod token_request;
 
-use eframe::egui::{self, Context};
+use eframe::egui::{CentralPanel, Context};
 use crate::state::AppState;
 
 pub fn draw_ui(state: &mut AppState, ctx: &Context) {
   sidebar::sidebar(state, ctx);
 
-  egui::CentralPanel::default().show(ctx, |ui| {
-    ui.heading("Central Panel");
-
-    ui.label(&state.openai_token);
-    // ui.horizontal(|ui| {
-    //   let name_label = ui.label("Your name: ");
-
-    //   ui.text_edit_singleline(&mut self.name)
-    //     .labelled_by(name_label.id);
-    // });
-
-    // ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
+  CentralPanel::default().show(ctx, |ui| {
+    if state.openai_token.is_empty() {
+      token_request::token_request(state, ctx, ui);
+    } else {
+      chat::chat(state, ctx, ui);
+    }
   });
 }
