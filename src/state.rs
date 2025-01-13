@@ -1,5 +1,4 @@
-use std::{path::PathBuf, sync::LazyLock, fs, env};
-use serde::{Serialize, Deserialize};
+use std::{path::PathBuf, sync::LazyLock, fs};
 use async_openai::{Client, config::OpenAIConfig};
 use crate::result::Result;
 
@@ -13,7 +12,7 @@ static APP_STATE_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
   APP_DATA_DIR.join("state")
 });
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct AppState {
   pub chats: Vec<String>,
   #[serde(skip)]
@@ -42,16 +41,18 @@ impl AppState {
 
     let token = token.unwrap_or_default();
 
-    let mut app_state: AppState = bincode::deserialize(&bytes).unwrap_or_else(|_| {
-      env::set_var("OPENAI_API_KEY", &token);
+    let Ok(mut state) = bincode::deserialize::<AppState>(&bytes) else {
+      let mut state = AppState::default();
 
-      Default::default()
-    });
+      state.openai_token = token;
+
+      return Ok(state);
+    };
 
     if !token.is_empty() {
-      app_state.openai_token = token;
+      state.openai_token = token;
     }
 
-    Ok(app_state)
+    Ok(state)
   }
 }
