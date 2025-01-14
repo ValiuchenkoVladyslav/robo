@@ -13,11 +13,25 @@ static APP_STATE_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
   APP_DATA_DIR.join("state")
 });
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Chat {
   pub title: String,
   pub saved_input: String,
+  pub model: String,
   pub messages: Vec<ChatMessage>,
+}
+
+impl Chat {
+  pub fn new(models: Arc<Mutex<Vec<LocalModel>>>) -> Self {
+    Self {
+      title: "New Chat".to_string(),
+      saved_input: String::new(),
+      model: models.lock().unwrap().first()
+        .map_or("phi3.5", |model| &model.name)
+        .to_string(),
+      messages: vec![ChatMessage::system("Reply shortly, no more than asked".to_string())],
+    }
+  }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -27,7 +41,7 @@ pub struct AppState {
   pub models: Arc<Mutex<Vec<LocalModel>>>,
 
   pub chats: Arc<Mutex<Vec<Chat>>>,
-  pub active_chat: Option<usize>,
+  pub active_chat: usize,
 }
 
 impl AppState {
@@ -42,9 +56,9 @@ impl AppState {
   }
 
   pub fn load(ollama_url: Option<String>) -> Result<Self> {
-    let bytes = fs::read(&*APP_STATE_FILE)?;
-
-    let mut state: AppState = bincode::deserialize(&bytes).unwrap_or_default();
+    let mut state: AppState = fs::read(&*APP_STATE_FILE)
+      .map(|bytes| bincode::deserialize(&bytes).unwrap_or_default())
+      .unwrap_or_default();
 
     if let Some(ollama_url) = ollama_url {
       if let Some(pos) = ollama_url.rfind(':') {
@@ -54,6 +68,15 @@ impl AppState {
         );
       }
     }
+
+    tokio::spawn({
+      let ollama = state.ollama.clone();
+      let models = state.models.clone();
+
+      async move {
+        *models.lock().unwrap() = ollama.list_local_models().await.expect("Failed to list models");
+      }
+    });
 
     Ok(state)
   }

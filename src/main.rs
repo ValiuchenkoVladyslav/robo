@@ -20,12 +20,13 @@ impl eframe::App for AppState {
 }
 
 fn main() -> result::Result {
-  let args = args::Args::parse();
-  let app_state = AppState::load(args.ollama_url)?;
-
   // create runtime for async tasks
   let rt = tokio::runtime::Runtime::new()?;
   let _enter = rt.enter();
+
+  // parse args and load app state
+  let args = args::Args::parse();
+  let app_state = AppState::load(args.ollama_url)?;
 
   eframe::run_native(
     "Robo AI Chat",
