@@ -8,6 +8,9 @@ pub enum Error {
 
   #[error("UI error: {0}")]
   Ui(#[from] eframe::Error),
+
+  #[error("Failed to parse port: {0}")]
+  ParsePort(#[from] std::num::ParseIntError),
 }
 
 pub type Result<T=()> = core::result::Result<T, Error>;
