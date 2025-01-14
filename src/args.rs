@@ -1,4 +1,4 @@
-/// Robo: ChatGPT client written purely in Rust
+/// Robo: Ollama client written purely in Rust
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
 pub struct Args {
