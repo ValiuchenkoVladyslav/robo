@@ -21,7 +21,7 @@ impl eframe::App for AppState {
 
 fn main() -> result::Result {
   let args = args::Args::parse();
-  let app_state = AppState::load(args.token)?;
+  let app_state = AppState::load(args.ollama_url)?;
 
   // create runtime for async tasks
   let rt = tokio::runtime::Runtime::new()?;

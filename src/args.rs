@@ -2,8 +2,7 @@
 #[derive(clap::Parser, Debug)]
 #[command(about, long_about = None)]
 pub struct Args {
-  /// OpenAi API token.
-  /// Required on first run. Will be saved to internal storage.
+  /// Custom Ollama API URL. Default is http://localhost:11434
   #[arg(short, long)]
-  pub token: Option<String>,
+  pub ollama_url: Option<String>,
 }

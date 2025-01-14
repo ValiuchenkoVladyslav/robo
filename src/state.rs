@@ -1,8 +1,9 @@
-use std::{path::PathBuf, sync::LazyLock, fs};
-use async_openai::{Client, config::OpenAIConfig};
+use std::{fs, path::PathBuf, sync::{Arc, LazyLock, Mutex}};
+use serde::{Deserialize, Serialize};
 use crate::result::Result;
+use ollama_rs::{generation::chat::ChatMessage, models::LocalModel, Ollama};
 
-static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+pub static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   dirs::data_dir()
     .expect("Unable to locate data dir")
     .join("robo")
@@ -12,17 +13,21 @@ static APP_STATE_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
   APP_DATA_DIR.join("state")
 });
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Chat {
+  pub title: String,
+  pub saved_input: String,
+  pub messages: Vec<ChatMessage>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AppState {
-  pub chats: Vec<String>,
   #[serde(skip)]
+  pub ollama: Ollama,
+  pub models: Arc<Mutex<Vec<LocalModel>>>,
+
+  pub chats: Arc<Mutex<Vec<Chat>>>,
   pub active_chat: Option<usize>,
-
-  pub openai_token: String,
-  #[serde(skip)]
-  pub openai_client: Client<OpenAIConfig>,
-
-  pub input: String,
 }
 
 impl AppState {
@@ -36,21 +41,18 @@ impl AppState {
     Ok(())
   }
 
-  pub fn load(token: Option<String>) -> Result<Self> {
+  pub fn load(ollama_url: Option<String>) -> Result<Self> {
     let bytes = fs::read(&*APP_STATE_FILE)?;
 
-    let token = token.unwrap_or_default();
+    let mut state: AppState = bincode::deserialize(&bytes).unwrap_or_default();
 
-    let Ok(mut state) = bincode::deserialize::<AppState>(&bytes) else {
-      let mut state = AppState::default();
-
-      state.openai_token = token;
-
-      return Ok(state);
-    };
-
-    if !token.is_empty() {
-      state.openai_token = token;
+    if let Some(ollama_url) = ollama_url {
+      if let Some(pos) = ollama_url.rfind(':') {
+        state.ollama = Ollama::new(
+          &ollama_url[..pos],
+          ollama_url[pos + 1..].parse()?,
+        );
+      }
     }
 
     Ok(state)
