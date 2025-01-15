@@ -15,7 +15,7 @@ pub fn draw_ui(state: &mut AppState, ctx: &Context) {
 
   CentralPanel::default().show(ctx, |ui| {
     // create a new chat if there are no chats
-    if let Ok(mut chats) = state.chats.lock() {
+    if let Ok(mut chats) = state.chats.write() {
       if chats.is_empty() {
         chats.push(Chat::new(state.models.clone()));
 

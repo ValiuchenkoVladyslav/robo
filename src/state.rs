@@ -1,9 +1,9 @@
-use std::{fs, path::PathBuf, sync::{Arc, LazyLock, Mutex}};
+use std::{fs, path::PathBuf, sync::{Arc, LazyLock, RwLock}};
 use serde::{Deserialize, Serialize};
-use crate::result::Result;
 use ollama_rs::{generation::chat::ChatMessage, models::LocalModel, Ollama};
+use crate::result::Result;
 
-pub static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   dirs::data_dir()
     .expect("Unable to locate data dir")
     .join("robo")
@@ -22,11 +22,11 @@ pub struct Chat {
 }
 
 impl Chat {
-  pub fn new(models: Arc<Mutex<Vec<LocalModel>>>) -> Self {
+  pub fn new(models: Arc<RwLock<Vec<LocalModel>>>) -> Self {
     Self {
       title: "New Chat".to_string(),
       saved_input: String::new(),
-      model: models.lock().unwrap().first()
+      model: models.read().unwrap().first()
         .map_or("phi3.5", |model| &model.name)
         .to_string(),
       messages: vec![ChatMessage::system("Reply shortly, no more than asked".to_string())],
@@ -37,10 +37,10 @@ impl Chat {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AppState {
   #[serde(skip)]
-  pub ollama: Ollama,
-  pub models: Arc<Mutex<Vec<LocalModel>>>,
+  pub ollama: Arc<Ollama>,
+  pub models: Arc<RwLock<Vec<LocalModel>>>,
 
-  pub chats: Arc<Mutex<Vec<Chat>>>,
+  pub chats: Arc<RwLock<Vec<Chat>>>,
   pub active_chat: usize,
 }
 
@@ -62,9 +62,11 @@ impl AppState {
 
     if let Some(ollama_url) = ollama_url {
       if let Some(pos) = ollama_url.rfind(':') {
-        state.ollama = Ollama::new(
-          &ollama_url[..pos],
-          ollama_url[pos + 1..].parse()?,
+        state.ollama = Arc::new(
+          Ollama::new(
+            &ollama_url[..pos],
+            ollama_url[pos + 1..].parse()?,
+          )
         );
       }
     }
@@ -74,7 +76,7 @@ impl AppState {
       let models = state.models.clone();
 
       async move {
-        *models.lock().unwrap() = ollama.list_local_models().await.expect("Failed to list models");
+        *models.write().unwrap() = ollama.list_local_models().await.expect("Failed to list models");
       }
     });
 

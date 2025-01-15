@@ -11,7 +11,7 @@ pub fn new_chat_btn(ui: &mut Ui, state: &mut AppState) {
     .ui(ui);
 
   if btn.clicked() {
-    let mut chats = state.chats.lock().unwrap();
+    let mut chats = state.chats.write().unwrap();
     chats.push(Chat::new(state.models.clone()));
 
     state.active_chat = chats.len() - 1;
@@ -21,7 +21,7 @@ pub fn new_chat_btn(ui: &mut Ui, state: &mut AppState) {
 }
 
 fn chats_list(ui: &mut Ui, state: &mut AppState) {
-  for (i, chat) in state.chats.lock().unwrap().iter().enumerate() {
+  for (i, chat) in state.chats.read().unwrap().iter().enumerate() {
     Frame::default()
       .inner_margin(Margin::symmetric(0., 2.))
       .show(ui, |ui| {

@@ -1,38 +1,38 @@
 use ollama_rs::{error::OllamaError, generation::chat::{request::ChatMessageRequest, ChatMessage}, Ollama};
 use eframe::egui::*;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use crate::{state::{AppState, Chat}, ui::utils::{set_input_rounding, DARKER}};
 
 async fn ask_ai(
-  mut ollama: Ollama,
-  chats: Arc<Mutex<Vec<Chat>>>,
-  chat_idx: usize,
+  ollama: Arc<Ollama>,
+  chats: Arc<RwLock<Vec<Chat>>>,
+  chat_i: usize,
 ) -> core::result::Result<(), OllamaError> {
   // we clone the chat to avoid holding the lock while sending the message
-  let mut active_chat = chats.lock().unwrap()[chat_idx].clone();
+  let mut curr_chat = chats.read().unwrap()[chat_i].clone();
 
   ollama
     .send_chat_messages_with_history(
-      &mut active_chat.messages,
+      &mut curr_chat.messages,
       ChatMessageRequest::new(
-        active_chat.model,
-        vec![ChatMessage::user(active_chat.saved_input)],
+        curr_chat.model,
+        vec![ChatMessage::user(curr_chat.saved_input)],
       ),
     )
     .await?;
 
-  chats.lock().unwrap()[chat_idx].messages = active_chat.messages;
+  chats.write().unwrap()[chat_i].messages = curr_chat.messages;
 
   Ok(())
 }
 
 pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
-  let active_chat = &mut state.chats.lock().unwrap()[state.active_chat];
+  let curr_chat = &mut state.chats.write().unwrap()[state.active_chat];
 
   ScrollArea::vertical()
     .scroll_bar_visibility(scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
     .show(ui, |ui| {
-      for message in active_chat.messages[1..].iter() {
+      for message in curr_chat.messages[1..].iter() {
         ui.label(message.content.clone());
         ui.add_space(24.);
       }
@@ -51,15 +51,15 @@ pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
           ui.set_height(24.);
 
           // send message button
-          let button = Button::new("Send").ui(ui);
+          let button = ui.button("Send ⬆");
 
           if button.hovered() {
             ctx.set_cursor_icon(CursorIcon::PointingHand);
           }
 
           if button.clicked() {
-            active_chat.messages.push(ChatMessage::user(active_chat.saved_input.clone()));
-            active_chat.saved_input = "".to_string();
+            curr_chat.messages.push(ChatMessage::user(curr_chat.saved_input.clone()));
+            curr_chat.saved_input = "".to_string();
 
             let ollama = state.ollama.clone();
             let chats = state.chats.clone();
@@ -78,11 +78,11 @@ pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
           // select model
           ComboBox::new("Model", "")
             .width(64.)
-            .selected_text(&active_chat.model)
+            .selected_text(&curr_chat.model)
             .show_ui(ui, |ui| {
-              for model in state.models.lock().unwrap().iter() {
+              for model in state.models.read().unwrap().iter() {
                 ui.selectable_value(
-                  &mut active_chat.model,
+                  &mut curr_chat.model,
                   model.name.clone(),
                   model.name.clone(),
                 );
@@ -96,7 +96,7 @@ pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
           .show(ui, |ui| {
             set_input_rounding(ui);
 
-            TextEdit::multiline(&mut active_chat.saved_input)
+            TextEdit::multiline(&mut curr_chat.saved_input)
               .desired_rows(3)
               .min_size(vec2(0., ui.max_rect().height()))
               .font(FontId::new(18., FontFamily::Proportional))
