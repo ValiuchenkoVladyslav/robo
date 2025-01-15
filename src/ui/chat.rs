@@ -1,7 +1,8 @@
 use ollama_rs::{error::OllamaError, generation::chat::{request::ChatMessageRequest, ChatMessage}, Ollama};
 use eframe::egui::*;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use crate::{state::{AppState, Chat}, ui::utils::{set_input_rounding, DARKER}};
+use parking_lot::RwLock;
 
 async fn ask_ai(
   ollama: Arc<Ollama>,
@@ -9,7 +10,7 @@ async fn ask_ai(
   chat_i: usize,
 ) -> core::result::Result<(), OllamaError> {
   // we clone the chat to avoid holding the lock while sending the message
-  let mut curr_chat = chats.read().unwrap()[chat_i].clone();
+  let mut curr_chat = chats.read()[chat_i].clone();
 
   ollama
     .send_chat_messages_with_history(
@@ -21,13 +22,13 @@ async fn ask_ai(
     )
     .await?;
 
-  chats.write().unwrap()[chat_i].messages = curr_chat.messages;
+  chats.write()[chat_i].messages = curr_chat.messages;
 
   Ok(())
 }
 
 pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
-  let curr_chat = &mut state.chats.write().unwrap()[state.active_chat];
+  let curr_chat = &mut state.chats.write()[state.active_chat];
 
   ScrollArea::vertical()
     .scroll_bar_visibility(scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
@@ -80,7 +81,7 @@ pub fn chat(state: &mut AppState, ctx: &Context, ui: &mut Ui) {
             .width(64.)
             .selected_text(&curr_chat.model)
             .show_ui(ui, |ui| {
-              for model in state.models.read().unwrap().iter() {
+              for model in state.models.read().iter() {
                 ui.selectable_value(
                   &mut curr_chat.model,
                   model.name.clone(),

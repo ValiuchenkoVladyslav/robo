@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot"] }
 eframe = { version = "0.30.0", default-features = false, features = ["accesskit", "default_fonts", "glow"] }
 clap = { version = "4.5.18", features = ["derive"] }
 ollama-rs = "0.2.3"
@@ -12,6 +12,7 @@ serde = { version = "1.0.217", features = ["rc"] }
 bincode = "1.3.3"
 thiserror = "2.0.11"
 dirs = "5.0.1"
+parking_lot = { version = "0.12.3", features = ["serde", "hardware-lock-elision"] }
 
 [profile.release]
 codegen-units = 1

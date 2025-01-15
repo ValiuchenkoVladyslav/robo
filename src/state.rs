@@ -1,7 +1,8 @@
-use std::{fs, path::PathBuf, sync::{Arc, LazyLock, RwLock}};
+use std::{fs, path::PathBuf, sync::{Arc, LazyLock}};
 use serde::{Deserialize, Serialize};
 use ollama_rs::{generation::chat::ChatMessage, models::LocalModel, Ollama};
 use crate::result::Result;
+use parking_lot::RwLock;
 
 static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   dirs::data_dir()
@@ -26,7 +27,7 @@ impl Chat {
     Self {
       title: "New Chat".to_string(),
       saved_input: String::new(),
-      model: models.read().unwrap().first()
+      model: models.read().first()
         .map_or("phi3.5", |model| &model.name)
         .to_string(),
       messages: vec![ChatMessage::system("Reply shortly, no more than asked".to_string())],
@@ -76,7 +77,7 @@ impl AppState {
       let models = state.models.clone();
 
       async move {
-        *models.write().unwrap() = ollama.list_local_models().await.expect("Failed to list models");
+        *models.write() = ollama.list_local_models().await.expect("Failed to list models");
       }
     });
 
