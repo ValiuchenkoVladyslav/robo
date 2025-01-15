@@ -35,14 +35,30 @@ impl Chat {
   }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+// at least we can avoid Arc with Ollama
+fn default_ollama() -> &'static Ollama {
+  Box::leak(Box::new(Ollama::default()))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
-  #[serde(skip)]
-  pub ollama: Arc<Ollama>,
+  #[serde(skip, default = "default_ollama")]
+  pub ollama: &'static Ollama,
   pub models: Arc<RwLock<Vec<LocalModel>>>,
 
   pub chats: Arc<RwLock<Vec<Chat>>>,
   pub active_chat: usize,
+}
+
+impl Default for AppState {
+  fn default() -> Self {
+    Self {
+      ollama: default_ollama(),
+      models: Default::default(),
+      chats: Default::default(),
+      active_chat: 0,
+    }
+  }
 }
 
 impl AppState {
@@ -63,22 +79,17 @@ impl AppState {
 
     if let Some(ollama_url) = ollama_url {
       if let Some(pos) = ollama_url.rfind(':') {
-        state.ollama = Arc::new(
-          Ollama::new(
-            &ollama_url[..pos],
-            ollama_url[pos + 1..].parse()?,
-          )
-        );
+        let ollama = Ollama::new(&ollama_url[..pos], ollama_url[pos + 1..].parse()?);
+
+        state.ollama = Box::leak(Box::new(ollama));
       }
     }
 
-    tokio::spawn({
-      let ollama = state.ollama.clone();
-      let models = state.models.clone();
+    let ollama = state.ollama;
+    let models = state.models.clone();
 
-      async move {
-        *models.write() = ollama.list_local_models().await.expect("Failed to list models");
-      }
+    tokio::spawn(async move {
+      *models.write() = ollama.list_local_models().await.expect("Failed to list models");
     });
 
     Ok(state)
