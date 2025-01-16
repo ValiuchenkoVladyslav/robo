@@ -1,0 +1,76 @@
+name: Check compile
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-compile-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # install rust
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+
+      - name: Check if project compiles
+        run: cargo build --release
+
+      - name: Archive compiled for windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-compiled-msi-nsis
+          path: target/release/bundle/**/*
+
+  check-compile-ubuntu:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # install rust
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+
+      - name: Check if project compiles
+        run: cargo build --release
+
+      - name: Archive compiled for linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-compiled-rpm-deb
+          path: |
+            target/release/bundle/**/*
+            !target/release/bundle/appimage
+
+  check-compile-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # install rust
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+
+      - name: Install macos target
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Check if project compiles
+        run: cargo build --release --target=x86_64-apple-darwin
+
+      - name: Archive compiled for macos
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-compiled-app-dmg
+          path: target/x86_64-apple-darwin/release/bundle/**/*
