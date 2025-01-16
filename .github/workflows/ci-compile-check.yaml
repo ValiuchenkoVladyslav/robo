@@ -27,8 +27,8 @@ jobs:
       - name: Archive compiled for windows
         uses: actions/upload-artifact@v4
         with:
-          name: windows-compiled-msi-nsis
-          path: target/release/bundle/**/*
+          name: windows-compiled
+          path: target/release/robo.exe
 
   check-compile-ubuntu:
     runs-on: ubuntu-latest
@@ -50,10 +50,8 @@ jobs:
       - name: Archive compiled for linux
         uses: actions/upload-artifact@v4
         with:
-          name: linux-compiled-rpm-deb
-          path: |
-            target/release/bundle/**/*
-            !target/release/bundle/appimage
+          name: linux-compiled
+          path: target/release/robo
 
   check-compile-macos:
     runs-on: macos-latest
@@ -75,5 +73,5 @@ jobs:
       - name: Archive compiled for macos
         uses: actions/upload-artifact@v4
         with:
-          name: macos-compiled-app-dmg
-          path: target/x86_64-apple-darwin/release/bundle/**/*
+          name: macos-compiled
+          path: target/x86_64-apple-darwin/robo
