@@ -65,7 +65,7 @@ pub async fn send_message(
 
   chats.write()[chat].messages.push(message.into_inner());
 
-  ask_ai(&data.ollama, &chats, chat).await?;
+  ask_ai(data.ollama, chats, chat).await?;
 
   let msg = chats.read()[chat].messages.last().unwrap().clone();
 
@@ -90,7 +90,7 @@ pub async fn delete_chat(data: Data<AppState>, chat: Path<usize>) -> impl Respon
 /// list ollama models
 #[get("/models")]
 pub async fn get_models(data: Data<AppState>) -> Result<Json<Vec<LocalModel>>> {
-  list_models(&data.ollama, &data.models).await?;
+  list_models(data.ollama, &data.models).await?;
 
   Ok(Json(data.models.read().clone()))
 }
