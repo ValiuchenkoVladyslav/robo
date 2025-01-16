@@ -16,7 +16,7 @@ api = ["actix-web"]
 
 [dependencies]
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
-eframe = { version = "0.30.0", default-features = false, features = ["accesskit", "default_fonts", "glow"], optional = true }
+eframe = { version = "0.30.0", optional = true }
 clap = { version = "4.5.18", features = ["derive"] }
 ollama-rs = { path = "ollama-rs" }
 serde = { version = "1.0.217", features = ["rc"] }
@@ -25,10 +25,6 @@ thiserror = "2.0.11"
 dirs = "5.0.1"
 parking_lot = { version = "0.12.3", features = ["serde", "hardware-lock-elision"] }
 actix-web = { version = "4", optional = true }
-
-[dependencies.winit]
-version = "=0.28.7"
-features = ["default"]
 
 [dev-dependencies.cargo-husky]
 version = "1"
