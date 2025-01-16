@@ -50,7 +50,7 @@ jobs:
       - name: Archive compiled for linux
         uses: actions/upload-artifact@v4
         with:
-          name: linux-compiled
+          name: linux-compiled-rpm-deb
           path: target/release/robo
 
   check-compile-macos:
@@ -74,4 +74,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-compiled
-          path: target/x86_64-apple-darwin/robo
+          path: target/x86_64-apple-darwin/release/robo
