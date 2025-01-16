@@ -40,7 +40,7 @@ pub fn ask_ai_sync(ollama: &'static Ollama, chats: &Arc<RwLock<Vec<Chat>>>, chat
   });
 }
 
-pub async fn list_models(ollama: &Ollama, models: Arc<RwLock<Vec<LocalModel>>>) -> Result {
+pub async fn list_models(ollama: &Ollama, models: &Arc<RwLock<Vec<LocalModel>>>) -> Result {
   *models.write() = ollama.list_local_models().await?;
 
   Ok(())

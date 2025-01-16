@@ -24,7 +24,7 @@ async fn main() -> result::Result {
     let models = app_state.models.clone();
 
     async move {
-      if let Err(err) = ollama::list_models(ollama, models).await {
+      if let Err(err) = ollama::list_models(ollama, &models).await {
         eprintln!(
           "Failed to list models: {}\nMake sure Ollama is running!",
           err
