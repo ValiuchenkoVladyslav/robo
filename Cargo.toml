@@ -26,6 +26,10 @@ dirs = "5.0.1"
 parking_lot = { version = "0.12.3", features = ["serde", "hardware-lock-elision"] }
 actix-web = { version = "4", optional = true }
 
+[dependencies.winit]
+version = "*"
+features = ["default"]
+
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
