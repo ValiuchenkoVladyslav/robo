@@ -12,12 +12,10 @@ members = [
 ollama-rs = { path = "ollama-rs" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 clap = { version = "4.5.18", features = ["derive"] }
-serde = { version = "1.0.217", features = ["rc"] }
-bincode = "1.3.3"
+serde = "1.0.217"
 thiserror = "2.0.11"
-dirs = "5.0.1"
-parking_lot = { version = "0.12.3", features = ["serde", "hardware-lock-elision"] }
 actix-web = "4"
+redis = "0.28.1"
 
 [dev-dependencies.cargo-husky]
 version = "1"
