@@ -11,16 +11,19 @@ members = [
 [dependencies]
 ollama-rs = { path = "ollama-rs" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
-clap = { version = "4.5.18", features = ["derive"] }
 serde = "1.0.217"
 thiserror = "2.0.11"
 actix-web = "4"
 redis = "0.28.1"
+sea-orm = { version = "1.1.4", features = [ "sqlx-postgres", "runtime-tokio-native-tls", "macros" ] }
 
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
 features = ["user-hooks"]
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
 
 [profile.release]
 codegen-units = 1
