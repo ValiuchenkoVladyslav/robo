@@ -1,3 +1,5 @@
+use actix_web::http::StatusCode;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
   #[error("Io error: {0}")]
@@ -6,10 +8,6 @@ pub enum Error {
   #[error("Bincode error: {0}")]
   Bincode(#[from] bincode::Error),
 
-  #[cfg(feature = "gui")]
-  #[error("GUI error: {0}")]
-  Gui(#[from] eframe::Error),
-
   #[error("Ollama error: {0}")]
   Ollama(#[from] ollama_rs::error::OllamaError),
 
@@ -17,15 +15,10 @@ pub enum Error {
   #[error("Failed to parse port: {0}")]
   ParsePort(#[from] std::num::ParseIntError),
 
-  #[cfg(feature = "api")]
   #[error("Not Found")]
   NotFound,
 }
 
-#[cfg(feature = "api")]
-use actix_web::http::StatusCode;
-
-#[cfg(feature = "api")]
 impl actix_web::ResponseError for Error {
   fn status_code(&self) -> StatusCode {
     match self {

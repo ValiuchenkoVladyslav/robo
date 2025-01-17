@@ -2,11 +2,7 @@ use crate::result::Result;
 use ollama_rs::{generation::chat::ChatMessage, models::LocalModel, Ollama};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::{
-  fs,
-  path::PathBuf,
-  sync::{Arc, LazyLock},
-};
+use std::{fs, path::PathBuf, sync::LazyLock};
 
 static APP_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
   dirs::data_dir()
@@ -25,7 +21,7 @@ pub struct Chat {
 }
 
 impl Chat {
-  pub fn new(models: &Arc<RwLock<Vec<LocalModel>>>) -> Self {
+  pub fn new(models: &RwLock<Vec<LocalModel>>) -> Self {
     Self {
       title: "New Chat".to_string(),
       saved_input: String::new(),
@@ -50,9 +46,9 @@ fn default_ollama() -> &'static Ollama {
 pub struct AppState {
   #[serde(skip, default = "default_ollama")]
   pub ollama: &'static Ollama,
-  pub models: Arc<RwLock<Vec<LocalModel>>>,
+  pub models: RwLock<Vec<LocalModel>>,
 
-  pub chats: Arc<RwLock<Vec<Chat>>>,
+  pub chats: RwLock<Vec<Chat>>,
   pub active_chat: usize,
 }
 
