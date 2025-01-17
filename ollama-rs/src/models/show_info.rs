@@ -13,9 +13,6 @@ impl Ollama {
     })?;
     let builder = self.reqwest_client.post(url);
 
-    #[cfg(feature = "headers")]
-    let builder = builder.headers(self.request_headers.clone());
-
     let res = builder.body(serialized).send().await?;
 
     if !res.status().is_success() {

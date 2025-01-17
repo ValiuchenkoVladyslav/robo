@@ -33,9 +33,6 @@ impl Ollama {
     let serialized = serde_json::to_string(&request)?;
     let builder = self.reqwest_client.post(url);
 
-    #[cfg(feature = "headers")]
-    let builder = builder.headers(self.request_headers.clone());
-
     let res = builder.body(serialized).send().await?;
 
     if !res.status().is_success() {
@@ -79,9 +76,6 @@ impl Ollama {
     let url = format!("{}api/pull", self.url_str());
     let serialized = serde_json::to_string(&request)?;
     let builder = self.reqwest_client.post(url);
-
-    #[cfg(feature = "headers")]
-    let builder = builder.headers(self.request_headers.clone());
 
     let res = builder.body(serialized).send().await?;
 

@@ -9,9 +9,6 @@ impl Ollama {
     let url = format!("{}api/tags", self.url_str());
     let builder = self.reqwest_client.get(url);
 
-    #[cfg(feature = "headers")]
-    let builder = builder.headers(self.request_headers.clone());
-
     let res = builder.send().await?;
 
     if !res.status().is_success() {

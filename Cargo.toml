@@ -6,7 +6,6 @@ edition = "2021"
 [workspace]
 members = [
   "ollama-rs",
-  "ollama-rs-macros",
 ]
 
 [dependencies]

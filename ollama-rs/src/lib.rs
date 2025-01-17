@@ -2,15 +2,9 @@
 
 use url::Url;
 
-#[cfg(feature = "macros")]
-pub use ollama_rs_macros::{function, tool_group};
-
 pub mod coordinator;
 pub mod error;
 pub mod generation;
-#[cfg_attr(docsrs, doc(cfg(feature = "headers")))]
-#[cfg(feature = "headers")]
-pub mod headers;
 pub mod history;
 pub mod models;
 
@@ -75,8 +69,6 @@ impl IntoUrlSealed for String {
 pub struct Ollama {
   pub(crate) url: Url,
   pub(crate) reqwest_client: reqwest::Client,
-  #[cfg(feature = "headers")]
-  pub(crate) request_headers: reqwest::header::HeaderMap,
 }
 
 impl Ollama {
@@ -151,8 +143,6 @@ impl Default for Ollama {
     Self {
       url: Url::parse("http://127.0.0.1:11434").unwrap(),
       reqwest_client: reqwest::Client::new(),
-      #[cfg(feature = "headers")]
-      request_headers: reqwest::header::HeaderMap::new(),
     }
   }
 }

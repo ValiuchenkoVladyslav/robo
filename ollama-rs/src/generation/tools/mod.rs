@@ -1,7 +1,3 @@
-#[cfg_attr(docsrs, doc(cfg(feature = "tool-implementations")))]
-#[cfg(feature = "tool-implementations")]
-pub mod implementations;
-
 use std::{error::Error, future::Future};
 
 use schemars::{gen::SchemaSettings, schema::RootSchema, JsonSchema};
