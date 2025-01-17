@@ -5,15 +5,18 @@ pub enum Error {
   #[error("Io error: {0}")]
   Io(#[from] std::io::Error),
 
-  #[error("Ollama error: {0}")]
-  Ollama(#[from] ollama_rs::error::OllamaError),
-
-  // only used for port parsing; see state.rs
+  // only used for port parsing
   #[error("Failed to parse port: {0}")]
   ParsePort(#[from] std::num::ParseIntError),
 
+  #[error("Ollama error: {0}")]
+  Ollama(#[from] ollama_rs::error::OllamaError),
+
   #[error("Redis error: {0}")]
   Redis(#[from] redis::RedisError),
+
+  #[error("DB error: {0}")]
+  Db(#[from] sea_orm::DbErr),
 
   #[error("Not Found")]
   NotFound,
