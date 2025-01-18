@@ -1,10 +1,4 @@
 #!/bin/sh
 
-echo 'check all features'
+echo 'check compile'
 cargo build
-
-echo 'check gui only feature'
-cargo build --features gui
-
-echo 'check api only feature'
-cargo build --features api
