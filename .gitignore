@@ -2,3 +2,6 @@ target/
 
 .vscode/*
 !.vscode/settings.json
+
+.env*
+!.env.dev
