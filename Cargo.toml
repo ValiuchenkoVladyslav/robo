@@ -13,10 +13,10 @@ ollama = { path = "ollama" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 serde = "1.0.217"
 thiserror = "2.0.11"
-actix-web = "4"
-redis = "0.28.1"
+actix-web = { version = "4", features = ["rustls"] }
+redis = { version = "0.28.1", features = ["tls-rustls"] }
 dotenv = "0.15.0"
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-native-roots", "postgres"] }
 sea-query = { version = "0.32.1", default-features = false, features = ["derive", "backend-postgres"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["parking_lot"] }
