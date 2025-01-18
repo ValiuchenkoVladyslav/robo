@@ -9,14 +9,20 @@ use actix_web::{
   App, HttpServer,
 };
 use std::env::var;
-use tracing::Level;
+
+// runs inside musl container
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux", target_env = "musl")))]
+const HOST: &str = "127.0.0.1";
+
+#[cfg(all(target_arch = "x86_64", target_os = "linux", target_env = "musl"))]
+const HOST: &str = "0.0.0.0";
 
 #[tokio::main]
 async fn main() -> result::Result {
   #[cfg(debug_assertions)]
   {
     tracing_subscriber::fmt()
-      .with_max_level(Level::DEBUG)
+      .with_max_level(tracing::Level::DEBUG)
       .init();
 
     dotenv::from_filename(".env.dev").ok();
@@ -43,7 +49,7 @@ async fn main() -> result::Result {
       .service(ollama::get_models)
       .service(chat::service())
   })
-  .bind(("127.0.0.1", 3000))?
+  .bind((HOST, 3000))?
   .run()
   .await?;
 
