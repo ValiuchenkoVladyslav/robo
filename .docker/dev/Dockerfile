@@ -1,5 +1,4 @@
-# https://github.com/oven-sh/bun/issues/6666
-FROM oven/bun:1.1.8-alpine AS build
+FROM alpine:3.21.0 AS build
 
 RUN apk add --no-cache alpine-sdk curl
 
@@ -12,24 +11,17 @@ COPY . /app
 
 WORKDIR /app
 
-# install deps
-RUN bun install
-
 # build the app
-RUN bun run scripts.ts build docker
-
-# clone maigret
-RUN git clone https://github.com/soxoj/maigret --depth 1
+RUN cargo build --release
 
 # final image
 FROM alpine:3.21.0
 
 # copy build output
-COPY --from=build /app/build /app
-COPY --from=build /app/maigret /app/maigret
+COPY --from=build /app/target/release/robo /app/robo
 
 # run the app
-CMD /app/eagle-web
+CMD /app/robo
 
 # expose app port
-EXPOSE 8080
+EXPOSE 3000

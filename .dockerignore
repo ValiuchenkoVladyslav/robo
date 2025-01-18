@@ -1,0 +1,12 @@
+# cargo generated
+target/
+
+# docker configs
+.docker/
+
+# env files
+.env
+.env.dev
+
+# git
+.git/

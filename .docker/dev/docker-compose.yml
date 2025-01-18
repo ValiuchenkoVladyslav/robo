@@ -1,41 +1,58 @@
 # WARNING: DO NOT USE THIS FILE IN PROD
 
+volumes:
+  pgdata:
+  ollama:
+
 services:
+  # APP service
+  app:
+    image: robo:latest
+    restart: always
+
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - POSTGRES_URL=postgres://postgres:postgress@postgres:5432/postgres
+      - REDIS_URL=redis://redis:6379
+
+    build:
+      context: ../../
+      dockerfile: ./.docker/dev/Dockerfile
+
+    ports: [3000:3000]
+
+    depends_on: [postgres, redis, ollama]
+
   # POSTGRES service
   postgres:
     image: postgres:17.2-alpine
     restart: always
     shm_size: 128mb
 
-    ports:
-      - 5433:5432
+    ports: [5433:5432]
 
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgress
       - POSTGRES_DB=postgres
 
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    volumes: [pgdata:/var/lib/postgresql/data]
 
   # REDIS service
   redis:
     image: redis:7.4-alpine
     restart: always
 
-    ports:
-      - 6379:6379
+    ports: [6379:6379]
 
   # OLLAMA service
   ollama:
     image: ollama/ollama:latest
     restart: always
 
-    volumes:
-      - ollama:/root/.ollama
+    volumes: [ollama:/root/.ollama]
 
-    ports:
-      - 11434:11434
+    ports: [11434:11434]
 
     deploy:
       resources:
@@ -43,7 +60,3 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
-
-volumes:
-  pgdata:
-  ollama:

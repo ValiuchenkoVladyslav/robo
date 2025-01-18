@@ -6,5 +6,4 @@ target/
 .env*
 !.env.dev
 
-.docker/*
-!.docker/dev
+.docker/prod
