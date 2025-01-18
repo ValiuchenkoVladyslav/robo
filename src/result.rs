@@ -16,10 +16,13 @@ pub enum Error {
   Redis(#[from] redis::RedisError),
 
   #[error("DB error: {0}")]
-  Db(#[from] sea_orm::DbErr),
+  Db(#[from] sqlx::Error),
 
   #[error("Not Found")]
   NotFound,
+
+  #[error("Invalid message role!")]
+  InvalidRole,
 }
 
 impl actix_web::ResponseError for Error {
