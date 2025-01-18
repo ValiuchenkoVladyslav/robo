@@ -1,34 +1,15 @@
-use crate::{result::Result, state::Chat};
-use ollama_rs::{
-  generation::chat::{request::ChatMessageRequest, ChatMessage},
-  models::LocalModel,
-  Ollama,
-};
-use parking_lot::RwLock;
+//! Ollama API
 
-pub async fn ask_ai(ollama: &Ollama, chats: &RwLock<Vec<Chat>>, chat: usize) -> Result {
-  // we clone the chat to avoid holding the lock while sending the message
-  let mut curr_chat = chats.read()[chat].clone();
+use crate::{result::Result, state::AppState};
+use actix_web::{get, web::Json};
+use ollama_rs::models::LocalModel;
 
-  ollama
-    .send_chat_messages_with_history(
-      &mut curr_chat.messages,
-      ChatMessageRequest::new(
-        curr_chat.model,
-        vec![ChatMessage::user(curr_chat.saved_input)],
-      ),
-    )
-    .await?;
+/// list available ollama models
+#[get("/models")]
+pub async fn get_models() -> Result<Json<Vec<LocalModel>>> {
+  let ollama = AppState::ollama();
 
-  chats.write()[chat]
-    .messages
-    .push(curr_chat.messages.last().unwrap().clone());
+  let models = ollama.list_local_models().await?;
 
-  Ok(())
-}
-
-pub async fn list_models(ollama: &Ollama, models: &RwLock<Vec<LocalModel>>) -> Result {
-  *models.write() = ollama.list_local_models().await?;
-
-  Ok(())
+  Ok(Json(models))
 }
