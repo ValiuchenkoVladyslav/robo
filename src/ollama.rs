@@ -2,7 +2,7 @@
 
 use crate::{result::Result, state::AppState};
 use actix_web::{get, web::Json};
-use ollama_rs::models::LocalModel;
+use ollama::models::LocalModel;
 
 /// list available ollama models
 #[get("/models")]

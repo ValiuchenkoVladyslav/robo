@@ -1486,7 +1486,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ollama-rs"
+name = "ollama"
 version = "0.2.4"
 dependencies = [
  "async-stream",
@@ -1813,7 +1813,7 @@ dependencies = [
  "actix-web",
  "cargo-husky",
  "dotenv",
- "ollama-rs",
+ "ollama",
  "redis",
  "sea-query",
  "serde",

@@ -1,5 +1,5 @@
 use crate::result::Result;
-use ollama_rs::Ollama;
+use ollama::Ollama;
 use redis::Client as Redis;
 use sqlx::PgPool;
 use std::sync::OnceLock;

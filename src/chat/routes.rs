@@ -11,7 +11,7 @@ use actix_web::{
   web::{Json, Path},
   HttpResponse, HttpResponseBuilder,
 };
-use ollama_rs::generation::chat::{request::ChatMessageRequest, ChatMessage};
+use ollama::generation::chat::{request::ChatMessageRequest, ChatMessage};
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query};
 use sqlx::{query, query_as, Row};
 

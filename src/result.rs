@@ -10,7 +10,7 @@ pub enum Error {
   ParsePort(#[from] std::num::ParseIntError),
 
   #[error("Ollama error: {0}")]
-  Ollama(#[from] ollama_rs::error::OllamaError),
+  Ollama(#[from] ollama::error::OllamaError),
 
   #[error("Redis error: {0}")]
   Redis(#[from] redis::RedisError),

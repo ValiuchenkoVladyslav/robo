@@ -1,5 +1,5 @@
 [package]
-name = "ollama-rs"
+name = "ollama"
 version = "0.2.4"
 edition = "2021"
 description = "A Rust library for interacting with the Ollama API"

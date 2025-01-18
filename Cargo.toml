@@ -5,11 +5,11 @@ edition = "2021"
 
 [workspace]
 members = [
-  "ollama-rs",
+  "ollama",
 ]
 
 [dependencies]
-ollama-rs = { path = "ollama-rs" }
+ollama = { path = "ollama" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 serde = "1.0.217"
 thiserror = "2.0.11"
