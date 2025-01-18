@@ -1,0 +1,49 @@
+# WARNING: DO NOT USE THIS FILE IN PROD
+
+services:
+  # POSTGRES service
+  postgres:
+    image: postgres:17.2-alpine
+    restart: always
+    shm_size: 128mb
+
+    ports:
+      - 5433:5432
+
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgress
+      - POSTGRES_DB=postgres
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # REDIS service
+  redis:
+    image: redis:7.4-alpine
+    restart: always
+
+    ports:
+      - 6379:6379
+
+  # OLLAMA service
+  ollama:
+    image: ollama/ollama:latest
+    restart: always
+
+    volumes:
+      - ollama:/root/.ollama
+
+    ports:
+      - 11434:11434
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+
+volumes:
+  pgdata:
+  ollama:
