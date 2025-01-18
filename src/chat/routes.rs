@@ -14,8 +14,10 @@ use actix_web::{
 use ollama::generation::chat::{request::ChatMessageRequest, ChatMessage};
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query};
 use sqlx::{query, query_as, Row};
+use tracing::instrument;
 
 /// get all chats
+#[instrument(name = "chats::get_chats")]
 #[get("/")]
 pub async fn get_chats() -> Result<Json<Vec<Chat>>> {
   let db = AppState::db();
@@ -31,6 +33,7 @@ pub async fn get_chats() -> Result<Json<Vec<Chat>>> {
 }
 
 /// create new chat
+#[instrument(name = "chats::create_chat")]
 #[post("/")]
 pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
   let db = AppState::db();
@@ -52,6 +55,7 @@ pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
 }
 
 /// edit chat
+#[instrument(name = "chats::edit_chat")]
 #[patch("/")]
 pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
   let db = AppState::db();
@@ -71,7 +75,8 @@ pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
 }
 
 /// delete chat
-#[delete("/{chat_id}")]
+#[instrument(name = "chats::delete_chat")]
+#[delete("/{chat_id}/")]
 pub async fn delete_chat(chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
   let db = AppState::db();
 
@@ -86,7 +91,8 @@ pub async fn delete_chat(chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
 }
 
 /// get chat messages
-#[get("/{chat_id}")]
+#[instrument(name = "chats::get_messages")]
+#[get("/{chat_id}/")]
 pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
   let db = AppState::db();
 
@@ -118,6 +124,7 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
 }
 
 /// send a message to a chat. returns ai response
+#[instrument(name = "chats::send_message")]
 #[put("/")]
 pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
   let db = AppState::db();

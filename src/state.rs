@@ -3,6 +3,7 @@ use ollama::Ollama;
 use redis::Client as Redis;
 use sqlx::PgPool;
 use std::sync::OnceLock;
+use tracing::{info, instrument};
 
 static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
@@ -27,6 +28,7 @@ impl AppState {
   /// - Puts everything into `APP_STATE` static variable
   ///
   /// Connections can be accessed via `AppState::get`
+  #[instrument(name = "AppState::init", skip_all)]
   pub async fn init(ollama_url: String, redis_url: String, postgres_url: String) -> Result {
     let state = AppState {
       ollama: {
@@ -39,6 +41,8 @@ impl AppState {
       redis: Redis::open(redis_url)?,
       postgres: PgPool::connect(&postgres_url).await?,
     };
+
+    info!("Ollama, Redis, Postgres connections established");
 
     APP_STATE.set(state).unwrap();
 

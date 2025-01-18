@@ -18,6 +18,8 @@ redis = "0.28.1"
 dotenv = "0.15.0"
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"] }
 sea-query = { version = "0.32.1", default-features = false, features = ["derive", "backend-postgres"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["parking_lot"] }
 
 [dev-dependencies.cargo-husky]
 version = "1"
