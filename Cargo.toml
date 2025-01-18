@@ -10,16 +10,16 @@ members = [
 
 [dependencies]
 ollama = { path = "ollama" }
-tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros"] }
 serde = "1.0.217"
 thiserror = "2.0.11"
 actix-web = { version = "4", features = ["rustls"] }
 redis = { version = "0.28.1", features = ["tls-rustls"] }
 dotenv = "0.15.0"
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls-ring-native-roots", "postgres"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }
 sea-query = { version = "0.32.1", default-features = false, features = ["derive", "backend-postgres"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["parking_lot"] }
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
 
 [dev-dependencies.cargo-husky]
 version = "1"
