@@ -1,5 +1,6 @@
 use crate::result::Result;
 use ollama::Ollama;
+use parking_lot::Mutex;
 use redis::Client as Redis;
 use sqlx::PgPool;
 use std::sync::OnceLock;
@@ -12,9 +13,8 @@ pub struct AppState {
   /// Ollama connection
   pub ollama: Ollama,
 
-  #[allow(dead_code)]
   /// Redis connection
-  pub redis: Redis,
+  pub redis: Mutex<Redis>,
 
   /// Postgres connection pool
   pub postgres: PgPool,
@@ -38,7 +38,7 @@ impl AppState {
 
         Ollama::new(&ollama_url[..port_pos], ollama_url[port_pos + 1..].parse()?)
       },
-      redis: Redis::open(redis_url)?,
+      redis: Mutex::new(Redis::open(redis_url)?),
       postgres: PgPool::connect(&postgres_url).await?,
     };
 
@@ -63,8 +63,7 @@ impl AppState {
     &AppState::get().ollama
   }
 
-  #[allow(dead_code)]
-  pub fn redis() -> &'static Redis {
+  pub fn redis() -> &'static Mutex<Redis> {
     &AppState::get().redis
   }
 }
