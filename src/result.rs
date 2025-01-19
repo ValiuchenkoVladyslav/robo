@@ -9,6 +9,9 @@ pub enum Error {
   #[error("Failed to parse port: {0}")]
   ParsePort(#[from] std::num::ParseIntError),
 
+  #[error("JSON error: {0}")]
+  Serde(#[from] serde_json::Error),
+
   #[error("Ollama error: {0}")]
   Ollama(#[from] ollama::error::OllamaError),
 
