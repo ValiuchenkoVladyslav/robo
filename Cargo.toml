@@ -9,19 +9,20 @@ members = [
 ]
 
 [dependencies]
-parking_lot = { version = "0.12.3", features = ["hardware-lock-elision"] }
+parking_lot = { version = "0.12", features = ["hardware-lock-elision"] }
 ollama = { path = "ollama" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros"] }
-serde = "1.0.217"
-serde_json = "1.0.135"
-thiserror = "2.0.11"
+serde = "1"
+serde_json = "1"
+thiserror = "2.0"
 actix-web = { version = "4", features = ["rustls"] }
 redis = { version = "0.28.1", features = ["tls-rustls"] }
 dotenv = "0.15.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }
 sea-query = { version = "0.32.1", default-features = false, features = ["derive", "backend-postgres"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
+jsonwebtoken = "9"
 
 [dev-dependencies.cargo-husky]
 version = "1"

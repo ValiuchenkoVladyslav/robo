@@ -1,8 +1,10 @@
 mod chat;
 mod db;
+mod jwt;
 mod ollama;
 mod result;
 mod state;
+mod user;
 
 use actix_web::{
   middleware::{NormalizePath, TrailingSlash},
@@ -35,11 +37,13 @@ async fn main() -> result::Result {
     dotenv::dotenv().ok();
   }
 
-  let ollama_url = var("OLLAMA_URL").expect("OLLAMA_URL env var");
-  let redis_url = var("REDIS_URL").expect("REDIS_URL env var");
-  let postgres_url = var("POSTGRES_URL").expect("POSTGRES_URL env");
-
-  state::AppState::init(ollama_url, redis_url, postgres_url).await?;
+  state::AppState::init(
+    var("OLLAMA_URL").expect("OLLAMA_URL env var"),
+    var("REDIS_URL").expect("REDIS_URL env var"),
+    var("POSTGRES_URL").expect("POSTGRES_URL env"),
+    var("JWT_SECRET").expect("JWT_SECRET env"),
+  )
+  .await?;
 
   db::run_migrations().await?;
 
@@ -47,6 +51,7 @@ async fn main() -> result::Result {
     App::new()
       .wrap(NormalizePath::new(TrailingSlash::Always))
       .service(ollama::get_models)
+      .service(user::service())
       .service(chat::service())
   })
   .bind((HOST, 3000))?
