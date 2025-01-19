@@ -25,6 +25,9 @@ pub enum Error {
 
   #[error("Unauthorized")]
   Unauthorized,
+
+  #[error("Email already taken!")]
+  EmailTaken,
 }
 
 impl actix_web::ResponseError for Error {

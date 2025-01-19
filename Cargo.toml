@@ -23,6 +23,7 @@ sea-query = { version = "0.32.1", default-features = false, features = ["derive"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
 jsonwebtoken = "9"
+argon2 = "0.5.3"
 
 [dev-dependencies.cargo-husky]
 version = "1"

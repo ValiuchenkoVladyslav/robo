@@ -15,6 +15,7 @@ use actix_web::{
 };
 use ollama::generation::chat::{request::ChatMessageRequest, ChatMessage};
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query};
+use serde::Deserialize;
 use sqlx::{query, query_as, Row};
 use std::fmt::Display;
 use tracing::instrument;
@@ -41,7 +42,7 @@ pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
 
   let chats_query = Query::select()
     .from(ChatIden::Table)
-    .columns(vec![
+    .columns([
       ChatIden::Id,
       ChatIden::Model,
       ChatIden::Title,
@@ -57,16 +58,20 @@ pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
   Ok(Json(chats))
 }
 
+#[derive(Debug, Deserialize)]
+struct CreateChatRequest {
+  title: String,
+  model: String,
+}
+
 /// create new chat
 #[instrument(name = "chats::create_chat")]
 #[post("/")]
 pub async fn create_chat(
   Auth(user_id): Auth,
-  Json(mut new_chat): Json<Chat>,
+  Json(new_chat): Json<CreateChatRequest>,
 ) -> Result<Json<Chat>> {
   let db = AppState::db();
-
-  new_chat.user_id = user_id;
 
   let create_chat_query = Query::insert()
     .into_table(ChatIden::Table)
@@ -74,14 +79,19 @@ pub async fn create_chat(
     .values_panic([
       new_chat.title.clone().into(),
       new_chat.model.clone().into(),
-      user_id.clone().into(),
+      user_id.into(),
     ])
     .returning_col(ChatIden::Id)
     .to_string(PostgresQueryBuilder);
 
   let chat_id = query(&create_chat_query).fetch_one(db).await?.get(0);
 
-  new_chat.id = chat_id;
+  let new_chat = Chat {
+    id: chat_id,
+    title: new_chat.title.clone(),
+    model: new_chat.model.clone(),
+    user_id,
+  };
 
   invalidate_cache(&chats_cache_key(user_id));
 
@@ -185,14 +195,23 @@ pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Jso
   Ok(Json(messages))
 }
 
+#[derive(Debug, Deserialize)]
+struct SendMessageRequest {
+  text: String,
+}
+
 /// send a message to a chat. returns ai response
 #[instrument(name = "chats::send_message")]
-#[put("/")]
-pub async fn send_message(Auth(user_id): Auth, user_msg: Json<Message>) -> Result<Json<Message>> {
+#[put("/{chat_id}/")]
+pub async fn send_message(
+  Auth(user_id): Auth,
+  user_msg: Json<SendMessageRequest>,
+  chat_id: Path<i32>,
+) -> Result<Json<Message>> {
   let db = AppState::db();
   let ollama = AppState::ollama();
 
-  let chat_id = user_msg.chat_id;
+  let chat_id = chat_id.into_inner();
 
   // get chat AI model
   let chat_model_query = Query::select()
@@ -205,44 +224,59 @@ pub async fn send_message(Auth(user_id): Auth, user_msg: Json<Message>) -> Resul
   let chat_model = query(&chat_model_query).fetch_one(db).await?.try_get(0);
 
   let Ok(chat_model) = chat_model else {
-    return Err(Error::NotFound);
+    return Err(Error::NotFound); // todo: better errors
   };
 
-  // get all chat messages
-  let get_messages_query = Query::select()
-    .from(MessageIden::Table)
-    .inner_join(
-      ChatIden::Table,
-      Expr::col((MessageIden::Table, MessageIden::ChatId)).equals((ChatIden::Table, ChatIden::Id)),
-    )
-    .columns([
-      (MessageIden::Table, MessageIden::Id),
-      (MessageIden::Table, MessageIden::Text),
-      (MessageIden::Table, MessageIden::Role),
-    ])
-    .and_where(Expr::col(MessageIden::ChatId).eq(chat_id))
-    .and_where(Expr::col((ChatIden::Table, ChatIden::UserId)).eq(user_id))
-    .order_by(MessageIden::Id, Order::Asc)
-    .to_string(PostgresQueryBuilder);
+  // try get messages from cache
+  let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
-  let rows = query(&get_messages_query).fetch_all(db).await?;
+  let mut messages = if let Ok(cached) = get_cached::<Vec<Message>>(&redis_key) {
+    cached
+      .into_iter()
+      .map(|msg| {
+        let message = match msg.role {
+          Role::User => ChatMessage::user,
+          Role::Ai => ChatMessage::assistant,
+          Role::System => ChatMessage::system,
+        };
 
-  // convert rows to ollama messages
-  let mut messages = rows
-    .into_iter()
-    .filter_map(|row| {
-      let role = Role::from_i16(row.get("role")).ok()?;
-      let text = row.get("text");
+        message(msg.text)
+      })
+      .collect::<Vec<ChatMessage>>()
+  } else {
+    let get_messages_query = Query::select()
+      .from(MessageIden::Table)
+      .inner_join(
+        ChatIden::Table,
+        Expr::col((MessageIden::Table, MessageIden::ChatId))
+          .equals((ChatIden::Table, ChatIden::Id)),
+      )
+      .columns([
+        (MessageIden::Table, MessageIden::Id),
+        (MessageIden::Table, MessageIden::Text),
+        (MessageIden::Table, MessageIden::Role),
+      ])
+      .and_where(Expr::col(MessageIden::ChatId).eq(chat_id))
+      .and_where(Expr::col((ChatIden::Table, ChatIden::UserId)).eq(user_id))
+      .order_by(MessageIden::Id, Order::Asc)
+      .to_string(PostgresQueryBuilder);
 
-      let msg = match role {
-        Role::User => ChatMessage::user(text),
-        Role::Ai => ChatMessage::assistant(text),
-        Role::System => ChatMessage::system(text),
-      };
+    // convert rows to ollama messages
+    query(&get_messages_query)
+      .fetch_all(db)
+      .await?
+      .into_iter()
+      .filter_map(|row| {
+        let msg = match Role::from_i16(row.get("role")).ok()? {
+          Role::User => ChatMessage::user,
+          Role::Ai => ChatMessage::assistant,
+          Role::System => ChatMessage::system,
+        };
 
-      Some(msg)
-    })
-    .collect::<Vec<ChatMessage>>();
+        Some(msg(row.get("text")))
+      })
+      .collect::<Vec<ChatMessage>>()
+  };
 
   // send chat messages to ollama
   ollama
@@ -279,7 +313,7 @@ pub async fn send_message(Auth(user_id): Auth, user_msg: Json<Message>) -> Resul
     chat_id,
   };
 
-  invalidate_cache(&messages_cache_key(format!("{chat_id}-{user_id}")));
+  invalidate_cache(&redis_key);
 
   Ok(Json(ai_res))
 }
