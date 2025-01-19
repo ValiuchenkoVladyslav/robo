@@ -1,5 +1,5 @@
 mod chat;
-mod migrations;
+mod db;
 mod ollama;
 mod result;
 mod state;
@@ -41,7 +41,7 @@ async fn main() -> result::Result {
 
   state::AppState::init(ollama_url, redis_url, postgres_url).await?;
 
-  migrations::run_migrations().await?;
+  db::run_migrations().await?;
 
   HttpServer::new(|| {
     App::new()
