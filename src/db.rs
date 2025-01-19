@@ -51,12 +51,16 @@ pub fn set_cache(key: &str, value: impl Serialize, ex: u64) {
   }
 }
 
+/// invalidate a cache key without blocking the main flow
 #[instrument]
 pub fn invalidate_cache(key: &str) {
-  let res = state::AppState::redis().lock().del::<_, ()>(key);
+  let key = key.to_string();
 
-  // del chache errors should not impact the main flow
-  if let Err(e) = res {
-    error!("{e}");
-  }
+  tokio::spawn(async move {
+    let res = state::AppState::redis().lock().del::<_, ()>(key);
+
+    if let Err(e) = res {
+      error!("{e}");
+    }
+  });
 }
