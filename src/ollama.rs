@@ -5,7 +5,7 @@ use actix_web::{get, web::Json};
 use ollama::models::LocalModel;
 
 /// list available ollama models
-#[get("/models")]
+#[get("/models/")]
 pub async fn get_models() -> Result<Json<Vec<LocalModel>>> {
   let ollama = AppState::ollama();
 
