@@ -1,4 +1,7 @@
 # WARNING: DO NOT USE THIS FILE IN PROD
+# PORTS ARE EXPOSED FOR DEVELOPMENT PURPOSES
+
+name: robo-dev
 
 volumes:
   pgdata:
@@ -7,11 +10,11 @@ volumes:
 services:
   # APP service
   app:
-    image: robo:latest
+    image: robo-core:latest
     restart: always
 
     environment:
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://ollama_balancer:8080
       - POSTGRES_URL=postgres://postgres:postgress@postgres:5432/postgres
       - REDIS_URL=redis://redis:6379
 
@@ -21,7 +24,7 @@ services:
 
     ports: [3000:3000]
 
-    depends_on: [postgres, redis, ollama]
+    depends_on: [postgres, redis, ollama_balancer]
 
   # POSTGRES service
   postgres:
@@ -29,7 +32,7 @@ services:
     restart: always
     shm_size: 128mb
 
-    ports: [5433:5432]
+    ports: [5433:5432] # HIDE IN PROD
 
     environment:
       - POSTGRES_USER=postgres
@@ -43,7 +46,18 @@ services:
     image: redis:7.4-alpine
     restart: always
 
-    ports: [6379:6379]
+    ports: [6379:6379] # HIDE IN PROD
+
+  # OLLAMA load balancer
+  ollama_balancer:
+    image: nginx:mainline-alpine
+    restart: always
+
+    volumes: [./ollama.nginx.conf:/etc/nginx/nginx.conf:ro]
+
+    ports: [8080:8080] # HIDE IN PROD
+
+    depends_on: [ollama]
 
   # OLLAMA service
   ollama:
@@ -52,9 +66,10 @@ services:
 
     volumes: [ollama:/root/.ollama]
 
-    ports: [11434:11434]
-
     deploy:
+      mode: replicated
+      replicas: 2
+
       resources:
         reservations:
           devices:
