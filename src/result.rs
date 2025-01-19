@@ -5,10 +5,6 @@ pub enum Error {
   #[error("Io error: {0}")]
   Io(#[from] std::io::Error),
 
-  // only used for port parsing
-  #[error("Failed to parse port: {0}")]
-  ParsePort(#[from] std::num::ParseIntError),
-
   #[error("JSON error: {0}")]
   Serde(#[from] serde_json::Error),
 
@@ -26,12 +22,16 @@ pub enum Error {
 
   #[error("Invalid message role!")]
   InvalidRole,
+
+  #[error("Unauthorized")]
+  Unauthorized,
 }
 
 impl actix_web::ResponseError for Error {
   fn status_code(&self) -> StatusCode {
     match self {
       Error::NotFound => StatusCode::NOT_FOUND,
+      Error::Unauthorized => StatusCode::UNAUTHORIZED,
       _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
   }

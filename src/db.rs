@@ -4,6 +4,7 @@ use crate::{
   chat::schemas::create_tables as create_chat_tables,
   result::{Error, Result},
   state,
+  user::schemas::create_tables as create_user_tables,
 };
 use redis::Commands;
 use serde::{de::DeserializeOwned, Serialize};
@@ -13,6 +14,9 @@ use tracing::{debug, error, info, instrument};
 #[instrument]
 pub async fn run_migrations() -> Result {
   let db = state::AppState::db();
+
+  info!("Running user migrations");
+  create_user_tables(db).await?;
 
   info!("Running chat migrations");
   create_chat_tables(db).await?;
