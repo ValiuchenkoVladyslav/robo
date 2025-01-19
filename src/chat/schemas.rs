@@ -1,6 +1,9 @@
 //! Chat DB schemas
 
-use crate::result::{Error, Result};
+use crate::{
+  result::{Error, Result},
+  user::schemas::UserIden,
+};
 use sea_query::{enum_def, ColumnDef, ForeignKey, PostgresQueryBuilder, Table, Value};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
@@ -38,6 +41,7 @@ pub struct Chat {
   pub id: i32,
   pub title: String,
   pub model: String,
+  pub user_id: i32,
 }
 
 #[enum_def]
@@ -64,6 +68,13 @@ pub async fn create_tables(pool: &PgPool) -> Result {
     )
     .col(ColumnDef::new(ChatIden::Model).string().not_null())
     .col(ColumnDef::new(ChatIden::Title).string().not_null())
+    .col(ColumnDef::new(ChatIden::UserId).integer().not_null())
+    .foreign_key(
+      ForeignKey::create()
+        .from(ChatIden::Table, ChatIden::UserId)
+        .to(UserIden::Table, UserIden::Id)
+        .on_delete(sea_query::ForeignKeyAction::Cascade),
+    )
     .to_string(PostgresQueryBuilder);
 
   let message_table = Table::create()

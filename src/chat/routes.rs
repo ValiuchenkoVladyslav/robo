@@ -6,6 +6,7 @@ use crate::{
   db::{get_cached, invalidate_cache, set_cache},
   result::{Error, Result},
   state::AppState,
+  user::auth::Auth,
 };
 use actix_web::{
   delete, get, patch, post, put,
@@ -18,35 +19,40 @@ use sqlx::{query, query_as, Row};
 use std::fmt::Display;
 use tracing::instrument;
 
-fn chats_cache_key(salt: impl Display) -> String {
-  format!("get_chats:{salt}")
+fn chats_cache_key(pref: impl Display) -> String {
+  format!("{pref}:get_chats")
 }
 
-fn messages_cache_key(salt: impl Display) -> String {
-  format!("get_messages:{salt}")
+fn messages_cache_key(pref: impl Display) -> String {
+  format!("{pref}:get_messages")
 }
 
 /// get all chats
 #[instrument(name = "chats::get_chats")]
 #[get("/")]
-pub async fn get_chats() -> Result<Json<Vec<Chat>>> {
+pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
   let db = AppState::db();
 
-  // TODO UNIQUE USER BASED KEY
-  let redis_key = chats_cache_key("TODO");
+  let redis_key = chats_cache_key(user_id);
 
   if let Ok(cached) = get_cached(&redis_key) {
     return Ok(Json(cached));
   }
 
   let chats_query = Query::select()
-    .columns(vec![ChatIden::Id, ChatIden::Model, ChatIden::Title])
     .from(ChatIden::Table)
+    .columns(vec![
+      ChatIden::Id,
+      ChatIden::Model,
+      ChatIden::Title,
+      ChatIden::UserId,
+    ])
+    .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
   let chats: Vec<Chat> = query_as(&chats_query).fetch_all(db).await?;
 
-  set_cache(&redis_key, &chats, 32); // TODO CHANGE TIME
+  set_cache(&redis_key, &chats, 460);
 
   Ok(Json(chats))
 }
@@ -54,15 +60,22 @@ pub async fn get_chats() -> Result<Json<Vec<Chat>>> {
 /// create new chat
 #[instrument(name = "chats::create_chat")]
 #[post("/")]
-pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
+pub async fn create_chat(
+  Auth(user_id): Auth,
+  Json(mut new_chat): Json<Chat>,
+) -> Result<Json<Chat>> {
   let db = AppState::db();
 
-  let mut new_chat = new_chat.into_inner();
+  new_chat.user_id = user_id;
 
   let create_chat_query = Query::insert()
     .into_table(ChatIden::Table)
-    .columns([ChatIden::Title, ChatIden::Model])
-    .values_panic([new_chat.title.clone().into(), new_chat.model.clone().into()])
+    .columns([ChatIden::Title, ChatIden::Model, ChatIden::UserId])
+    .values_panic([
+      new_chat.title.clone().into(),
+      new_chat.model.clone().into(),
+      user_id.clone().into(),
+    ])
     .returning_col(ChatIden::Id)
     .to_string(PostgresQueryBuilder);
 
@@ -70,7 +83,7 @@ pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
 
   new_chat.id = chat_id;
 
-  invalidate_cache(&chats_cache_key("TODO"));
+  invalidate_cache(&chats_cache_key(user_id));
 
   Ok(Json(new_chat))
 }
@@ -78,7 +91,7 @@ pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
 /// edit chat
 #[instrument(name = "chats::edit_chat")]
 #[patch("/")]
-pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
+pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<HttpResponseBuilder> {
   let db = AppState::db();
 
   let chat_update_query = Query::update()
@@ -88,6 +101,7 @@ pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
       (ChatIden::Model, chat.model.clone().into()),
     ])
     .and_where(Expr::col(ChatIden::Id).eq(chat.id))
+    .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
   let res = query(&chat_update_query).execute(db).await?;
@@ -96,7 +110,7 @@ pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
     return Err(Error::NotFound);
   }
 
-  invalidate_cache(&chats_cache_key("TODO"));
+  invalidate_cache(&chats_cache_key(user_id));
 
   Ok(HttpResponse::Ok())
 }
@@ -104,17 +118,18 @@ pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
 /// delete chat
 #[instrument(name = "chats::delete_chat")]
 #[delete("/{chat_id}/")]
-pub async fn delete_chat(chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
+pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
   let db = AppState::db();
 
   let delete_chat_query = Query::delete()
     .from_table(ChatIden::Table)
     .and_where(Expr::col(ChatIden::Id).eq(chat_id.into_inner()))
+    .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
   query(&delete_chat_query).execute(db).await?;
 
-  invalidate_cache(&chats_cache_key("TODO"));
+  invalidate_cache(&chats_cache_key(user_id));
 
   Ok(HttpResponse::Ok())
 }
@@ -122,12 +137,12 @@ pub async fn delete_chat(chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
 /// get chat messages
 #[instrument(name = "chats::get_messages")]
 #[get("/{chat_id}/")]
-pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
+pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
   let db = AppState::db();
 
   let chat_id = chat_id.into_inner();
 
-  let redis_key = messages_cache_key(chat_id); // TODO +USER
+  let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
   if let Ok(cached) = get_cached(&redis_key) {
     return Ok(Json(cached));
@@ -135,8 +150,18 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
 
   let get_msgs_query = Query::select()
     .from(MessageIden::Table)
-    .columns([MessageIden::Id, MessageIden::Text, MessageIden::Role])
+    .inner_join(
+      ChatIden::Table,
+      Expr::col((MessageIden::Table, MessageIden::ChatId)).equals((ChatIden::Table, ChatIden::Id)),
+    )
+    .columns([
+      (MessageIden::Table, MessageIden::Id),
+      (MessageIden::Table, MessageIden::Text),
+      (MessageIden::Table, MessageIden::Role),
+    ])
     .and_where(Expr::col(MessageIden::ChatId).eq(chat_id))
+    .and_where(Expr::col((ChatIden::Table, ChatIden::UserId)).eq(user_id))
+    .order_by(MessageIden::Id, Order::Asc)
     .to_string(PostgresQueryBuilder);
 
   let rows = query(&get_msgs_query).fetch_all(db).await?;
@@ -155,7 +180,7 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
     })
     .collect();
 
-  set_cache(&redis_key, &messages, 32); // TODO CHANGE TIME
+  set_cache(&redis_key, &messages, 460);
 
   Ok(Json(messages))
 }
@@ -163,7 +188,7 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
 /// send a message to a chat. returns ai response
 #[instrument(name = "chats::send_message")]
 #[put("/")]
-pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
+pub async fn send_message(Auth(user_id): Auth, user_msg: Json<Message>) -> Result<Json<Message>> {
   let db = AppState::db();
   let ollama = AppState::ollama();
 
@@ -174,6 +199,7 @@ pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
     .from(ChatIden::Table)
     .column(ChatIden::Model)
     .and_where(Expr::col(ChatIden::Id).eq(chat_id))
+    .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
   let chat_model = query(&chat_model_query).fetch_one(db).await?.try_get(0);
@@ -185,8 +211,17 @@ pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
   // get all chat messages
   let get_messages_query = Query::select()
     .from(MessageIden::Table)
-    .columns([MessageIden::Id, MessageIden::Text, MessageIden::Role])
+    .inner_join(
+      ChatIden::Table,
+      Expr::col((MessageIden::Table, MessageIden::ChatId)).equals((ChatIden::Table, ChatIden::Id)),
+    )
+    .columns([
+      (MessageIden::Table, MessageIden::Id),
+      (MessageIden::Table, MessageIden::Text),
+      (MessageIden::Table, MessageIden::Role),
+    ])
     .and_where(Expr::col(MessageIden::ChatId).eq(chat_id))
+    .and_where(Expr::col((ChatIden::Table, ChatIden::UserId)).eq(user_id))
     .order_by(MessageIden::Id, Order::Asc)
     .to_string(PostgresQueryBuilder);
 
@@ -244,7 +279,7 @@ pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
     chat_id,
   };
 
-  invalidate_cache(&messages_cache_key(chat_id));
+  invalidate_cache(&messages_cache_key(format!("{chat_id}-{user_id}")));
 
   Ok(Json(ai_res))
 }
