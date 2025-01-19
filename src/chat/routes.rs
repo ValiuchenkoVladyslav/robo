@@ -3,6 +3,7 @@
 use super::schemas::{Chat, ChatIden, Message, MessageIden};
 use crate::{
   chat::schemas::Role,
+  db::{get_cached, invalidate_cache, set_cache},
   result::{Error, Result},
   state::AppState,
 };
@@ -14,7 +15,16 @@ use actix_web::{
 use ollama::generation::chat::{request::ChatMessageRequest, ChatMessage};
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query};
 use sqlx::{query, query_as, Row};
+use std::fmt::Display;
 use tracing::instrument;
+
+fn chats_cache_key(salt: impl Display) -> String {
+  format!("get_chats:{salt}")
+}
+
+fn messages_cache_key(salt: impl Display) -> String {
+  format!("get_messages:{salt}")
+}
 
 /// get all chats
 #[instrument(name = "chats::get_chats")]
@@ -22,12 +32,21 @@ use tracing::instrument;
 pub async fn get_chats() -> Result<Json<Vec<Chat>>> {
   let db = AppState::db();
 
+  // TODO UNIQUE USER BASED KEY
+  let redis_key = chats_cache_key("TODO");
+
+  if let Ok(cached) = get_cached(&redis_key) {
+    return Ok(Json(cached));
+  }
+
   let chats_query = Query::select()
     .columns(vec![ChatIden::Id, ChatIden::Model, ChatIden::Title])
     .from(ChatIden::Table)
     .to_string(PostgresQueryBuilder);
 
   let chats: Vec<Chat> = query_as(&chats_query).fetch_all(db).await?;
+
+  set_cache(&redis_key, &chats, 32); // TODO CHANGE TIME
 
   Ok(Json(chats))
 }
@@ -51,6 +70,8 @@ pub async fn create_chat(new_chat: Json<Chat>) -> Result<Json<Chat>> {
 
   new_chat.id = chat_id;
 
+  invalidate_cache(&chats_cache_key("TODO"));
+
   Ok(Json(new_chat))
 }
 
@@ -69,7 +90,13 @@ pub async fn edit_chat(chat: Json<Chat>) -> Result<HttpResponseBuilder> {
     .and_where(Expr::col(ChatIden::Id).eq(chat.id))
     .to_string(PostgresQueryBuilder);
 
-  query(&chat_update_query).execute(db).await?;
+  let res = query(&chat_update_query).execute(db).await?;
+
+  if res.rows_affected() == 0 {
+    return Err(Error::NotFound);
+  }
+
+  invalidate_cache(&chats_cache_key("TODO"));
 
   Ok(HttpResponse::Ok())
 }
@@ -87,6 +114,8 @@ pub async fn delete_chat(chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
 
   query(&delete_chat_query).execute(db).await?;
 
+  invalidate_cache(&chats_cache_key("TODO"));
+
   Ok(HttpResponse::Ok())
 }
 
@@ -97,6 +126,12 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
   let db = AppState::db();
 
   let chat_id = chat_id.into_inner();
+
+  let redis_key = messages_cache_key(chat_id); // TODO +USER
+
+  if let Ok(cached) = get_cached(&redis_key) {
+    return Ok(Json(cached));
+  }
 
   let get_msgs_query = Query::select()
     .from(MessageIden::Table)
@@ -119,6 +154,8 @@ pub async fn get_messages(chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
       Some(msg)
     })
     .collect();
+
+  set_cache(&redis_key, &messages, 32); // TODO CHANGE TIME
 
   Ok(Json(messages))
 }
@@ -206,6 +243,8 @@ pub async fn send_message(user_msg: Json<Message>) -> Result<Json<Message>> {
     role: Role::Ai,
     chat_id,
   };
+
+  invalidate_cache(&messages_cache_key(chat_id));
 
   Ok(Json(ai_res))
 }
