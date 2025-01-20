@@ -1,29 +1,22 @@
-use crate::user::auth::auth_middleware;
-use actix_web::{
-  body::MessageBody,
-  dev::{ServiceFactory, ServiceRequest, ServiceResponse},
-  middleware::from_fn,
-};
+//! Chat API
 
 mod routes;
 pub mod schemas;
 
-/// Chats API service
-pub fn service() -> actix_web::Scope<
-  impl ServiceFactory<
-    ServiceRequest,
-    Config = (),
-    Response = ServiceResponse<impl MessageBody>,
-    Error = actix_web::Error,
-    InitError = (),
-  >,
-> {
-  actix_web::web::scope("/chats")
-    .wrap(from_fn(auth_middleware))
-    .service(routes::get_chats)
-    .service(routes::create_chat)
-    .service(routes::edit_chat)
-    .service(routes::delete_chat)
-    .service(routes::get_messages)
-    .service(routes::send_message)
+use crate::user::auth;
+use axum::{
+  middleware::from_fn,
+  routing::{delete, get, patch, post},
+  Router,
+};
+
+pub fn chat_router() -> Router {
+  Router::new()
+    .route("/chats", get(routes::get_chats))
+    .route("/chats", post(routes::create_chat))
+    .route("/chats", patch(routes::edit_chat))
+    .route("/chats/{chat_id}", delete(routes::delete_chat))
+    .route("/chats/{chat_id}", get(routes::get_messages))
+    .route("/chats/{chat_id}", post(routes::send_message))
+    .layer(from_fn(auth::auth_middleware))
 }

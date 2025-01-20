@@ -6,11 +6,8 @@ mod result;
 mod state;
 mod user;
 
-use actix_web::{
-  middleware::{NormalizePath, TrailingSlash},
-  App, HttpServer,
-};
 use std::env::var;
+use tracing::info;
 
 // runs inside musl container
 #[cfg(not(all(target_arch = "x86_64", target_os = "linux", target_env = "musl")))]
@@ -47,16 +44,15 @@ async fn main() -> result::Result {
 
   db::run_migrations().await?;
 
-  HttpServer::new(|| {
-    App::new()
-      .wrap(NormalizePath::new(TrailingSlash::Always))
-      .service(ollama::get_models)
-      .service(user::service())
-      .service(chat::service())
-  })
-  .bind((HOST, 3000))?
-  .run()
-  .await?;
+  let app = axum::Router::new()
+    .merge(ollama::ollama_router())
+    .merge(user::user_router())
+    .merge(chat::chat_router());
+
+  let listener = tokio::net::TcpListener::bind((HOST, 3000)).await?;
+  info!("listening on: {}", listener.local_addr()?);
+
+  axum::serve(listener, app).await?;
 
   Ok(())
 }

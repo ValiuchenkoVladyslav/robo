@@ -11,11 +11,11 @@ members = [
 [dependencies]
 parking_lot = { version = "0.12", features = ["hardware-lock-elision"] }
 ollama = { path = "ollama" }
-tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 serde = "1"
 serde_json = "1"
 thiserror = "2.0"
-actix-web = { version = "4", features = ["rustls"] }
+axum = { version = "0.8.1", features = ["macros"] }
 redis = { version = "0.28.1", features = ["tls-rustls"] }
 dotenv = "0.15.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }

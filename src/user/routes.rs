@@ -6,31 +6,31 @@ use crate::{
   state::AppState,
   user::schemas::{User, UserIden},
 };
-use actix_web::{post, web::Json};
 use argon2::{
   password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
   Argon2, PasswordHash, PasswordVerifier,
 };
+use axum::Json;
 use sea_query::{Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use sqlx::{query, query_as, Row};
 use tracing::instrument;
 
 #[derive(Debug, Serialize)]
-struct PublicUser {
+pub struct PublicUser {
   id: i32,
   name: String,
   email: String,
 }
 
 #[derive(Debug, Serialize)]
-struct AuthUser {
+pub struct AuthUser {
   token: String,
   public_user: PublicUser,
 }
 
 #[derive(Debug, Deserialize)]
-struct RegisterRequest {
+pub struct RegisterRequest {
   name: String,
   email: String,
   password: String,
@@ -38,7 +38,6 @@ struct RegisterRequest {
 
 /// create new user
 #[instrument(name = "users::create_user")]
-#[post("/")]
 pub async fn create_user(new_user: Json<RegisterRequest>) -> Result<Json<AuthUser>> {
   let db = AppState::db();
 
@@ -94,18 +93,17 @@ pub async fn create_user(new_user: Json<RegisterRequest>) -> Result<Json<AuthUse
 }
 
 #[derive(Debug, Deserialize)]
-struct LoginRequest {
+pub struct LoginRequest {
   email: String,
   password: String,
 }
 
 /// login user
 #[instrument(name = "users::login_user")]
-#[post("/login/")]
 pub async fn login_user(login_request: Json<LoginRequest>) -> Result<Json<AuthUser>> {
-  // get user by email
   let db = AppState::db();
 
+  // get user by email
   let find_by_email_query = Query::select()
     .from(UserIden::Table)
     .columns([

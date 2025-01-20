@@ -8,14 +8,10 @@ use crate::{
   state::AppState,
   user::auth::Auth,
 };
-use actix_web::{
-  delete, get, patch, post, put,
-  web::{Json, Path},
-  HttpResponse, HttpResponseBuilder,
-};
+use axum::{extract::Path, Json};
 use ollama::generation::chat::{request::ChatMessageRequest, ChatMessage};
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{query, query_as, Row};
 use std::fmt::Display;
 use tracing::instrument;
@@ -30,7 +26,6 @@ fn messages_cache_key(pref: impl Display) -> String {
 
 /// get all chats
 #[instrument(name = "chats::get_chats")]
-#[get("/")]
 pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
   let db = AppState::db();
 
@@ -59,14 +54,13 @@ pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
 }
 
 #[derive(Debug, Deserialize)]
-struct CreateChatRequest {
+pub struct CreateChatRequest {
   title: String,
   model: String,
 }
 
 /// create new chat
 #[instrument(name = "chats::create_chat")]
-#[post("/")]
 pub async fn create_chat(
   Auth(user_id): Auth,
   Json(new_chat): Json<CreateChatRequest>,
@@ -100,8 +94,8 @@ pub async fn create_chat(
 
 /// edit chat
 #[instrument(name = "chats::edit_chat")]
-#[patch("/")]
-pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<HttpResponseBuilder> {
+#[axum::debug_handler]
+pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<()> {
   let db = AppState::db();
 
   let chat_update_query = Query::update()
@@ -122,18 +116,17 @@ pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<HttpResp
 
   invalidate_cache(&chats_cache_key(user_id));
 
-  Ok(HttpResponse::Ok())
+  Ok(())
 }
 
 /// delete chat
 #[instrument(name = "chats::delete_chat")]
-#[delete("/{chat_id}/")]
-pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<HttpResponseBuilder> {
+pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<()> {
   let db = AppState::db();
 
   let delete_chat_query = Query::delete()
     .from_table(ChatIden::Table)
-    .and_where(Expr::col(ChatIden::Id).eq(chat_id.into_inner()))
+    .and_where(Expr::col(ChatIden::Id).eq(chat_id.0))
     .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
@@ -141,16 +134,15 @@ pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Http
 
   invalidate_cache(&chats_cache_key(user_id));
 
-  Ok(HttpResponse::Ok())
+  Ok(())
 }
 
 /// get chat messages
 #[instrument(name = "chats::get_messages")]
-#[get("/{chat_id}/")]
 pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
   let db = AppState::db();
 
-  let chat_id = chat_id.into_inner();
+  let chat_id = chat_id.0;
 
   let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
@@ -195,55 +187,54 @@ pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Jso
   Ok(Json(messages))
 }
 
-#[derive(Debug, Deserialize)]
-struct SendMessageRequest {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SendMessageRequest {
   text: String,
 }
 
 /// send a message to a chat. returns ai response
 #[instrument(name = "chats::send_message")]
-#[put("/{chat_id}/")]
 pub async fn send_message(
   Auth(user_id): Auth,
+  Path(chat_id): Path<i32>,
   user_msg: Json<SendMessageRequest>,
-  chat_id: Path<i32>,
 ) -> Result<Json<Message>> {
   let db = AppState::db();
   let ollama = AppState::ollama();
 
-  let chat_id = chat_id.into_inner();
+  let user_msg = user_msg.text.clone();
 
   // get chat AI model
-  let chat_model_query = Query::select()
+  let model_query = Query::select()
     .from(ChatIden::Table)
     .column(ChatIden::Model)
     .and_where(Expr::col(ChatIden::Id).eq(chat_id))
     .and_where(Expr::col(ChatIden::UserId).eq(user_id))
     .to_string(PostgresQueryBuilder);
 
-  let chat_model = query(&chat_model_query).fetch_one(db).await?.try_get(0);
-
-  let Ok(chat_model) = chat_model else {
+  let Ok(chat_model) = query(&model_query).fetch_one(db).await?.try_get(0) else {
     return Err(Error::NotFound); // todo: better errors
   };
 
   // try get messages from cache
   let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
-  let mut messages = if let Ok(cached) = get_cached::<Vec<Message>>(&redis_key) {
-    cached
-      .into_iter()
-      .map(|msg| {
-        let message = match msg.role {
-          Role::User => ChatMessage::user,
-          Role::Ai => ChatMessage::assistant,
-          Role::System => ChatMessage::system,
-        };
+  let mut messages = get_cached::<Vec<Message>>(&redis_key)
+    .unwrap_or_default()
+    .into_iter()
+    .map(|msg| {
+      let message = match msg.role {
+        Role::User => ChatMessage::user,
+        Role::Ai => ChatMessage::assistant,
+        Role::System => ChatMessage::system,
+      };
 
-        message(msg.text)
-      })
-      .collect::<Vec<ChatMessage>>()
-  } else {
+      message(msg.text)
+    })
+    .collect::<Vec<ChatMessage>>();
+
+  // if cache is empty, fetch messages from db
+  if messages.is_empty() {
     let get_messages_query = Query::select()
       .from(MessageIden::Table)
       .inner_join(
@@ -261,8 +252,7 @@ pub async fn send_message(
       .order_by(MessageIden::Id, Order::Asc)
       .to_string(PostgresQueryBuilder);
 
-    // convert rows to ollama messages
-    query(&get_messages_query)
+    messages = query(&get_messages_query)
       .fetch_all(db)
       .await?
       .into_iter()
@@ -275,14 +265,14 @@ pub async fn send_message(
 
         Some(msg(row.get("text")))
       })
-      .collect::<Vec<ChatMessage>>()
-  };
+      .collect();
+  }
 
   // send chat messages to ollama
   ollama
     .send_chat_messages_with_history(
       &mut messages,
-      ChatMessageRequest::new(chat_model, vec![ChatMessage::user(user_msg.text.clone())]),
+      ChatMessageRequest::new(chat_model, vec![ChatMessage::user(user_msg.clone())]),
     )
     .await?;
 
@@ -292,11 +282,7 @@ pub async fn send_message(
   let insert_msgs_query = Query::insert()
     .into_table(MessageIden::Table)
     .columns([MessageIden::Text, MessageIden::Role, MessageIden::ChatId])
-    .values_panic([
-      user_msg.text.clone().into(),
-      Role::User.into(),
-      chat_id.into(),
-    ])
+    .values_panic([user_msg.clone().into(), Role::User.into(), chat_id.into()])
     .values_panic([
       ai_res.content.clone().into(),
       Role::Ai.into(),

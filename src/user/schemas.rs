@@ -8,8 +8,6 @@ use sqlx::{FromRow, PgPool};
 #[enum_def]
 #[derive(Debug, Deserialize, Serialize, FromRow)]
 pub struct User {
-  // May be absent when creating a new user
-  #[serde(default)]
   pub id: i32,
   pub name: String,
   pub email: String,

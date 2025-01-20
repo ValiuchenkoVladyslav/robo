@@ -15,21 +15,18 @@ const JWT_EXP: Duration = Duration::from_secs((24 * 60 * 60) * 32); // 32 days
 pub fn create_jwt(id: i32) -> String {
   let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
 
-  let token = encode(
+  encode(
     &Header::new(JWT_ALGO),
     &Claims {
       id,
       exp: (time_now + JWT_EXP).as_secs(),
     },
-    &AppState::jwt_encode(),
+    AppState::jwt_encode(),
   )
-  .unwrap();
-
-  token
+  .unwrap()
 }
 
 pub fn validate_jwt(token: &str) -> JwtResult<i32> {
-  let data = decode::<Claims>(token, &AppState::jwt_decode(), &Validation::new(JWT_ALGO))?;
-
-  Ok(data.claims.id)
+  decode::<Claims>(token, AppState::jwt_decode(), &Validation::new(JWT_ALGO))
+    .map(|data| data.claims.id)
 }

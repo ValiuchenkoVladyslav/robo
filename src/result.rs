@@ -1,4 +1,7 @@
-use actix_web::http::StatusCode;
+use axum::{
+  http::StatusCode,
+  response::{IntoResponse, Response},
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -30,13 +33,16 @@ pub enum Error {
   EmailTaken,
 }
 
-impl actix_web::ResponseError for Error {
-  fn status_code(&self) -> StatusCode {
-    match self {
+impl IntoResponse for Error {
+  fn into_response(self) -> Response {
+    let code = match self {
       Error::NotFound => StatusCode::NOT_FOUND,
+      Error::EmailTaken => StatusCode::CONFLICT,
       Error::Unauthorized => StatusCode::UNAUTHORIZED,
       _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    };
+
+    (code, self.to_string()).into_response()
   }
 }
 
