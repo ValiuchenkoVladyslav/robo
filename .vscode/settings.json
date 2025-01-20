@@ -3,6 +3,7 @@
 
   "files.exclude": {
     "Cargo.lock": true,
+    "bun.lockb": true,
     "LICENSE": true,
   }
 }

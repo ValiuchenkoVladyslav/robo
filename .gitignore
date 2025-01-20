@@ -1,4 +1,7 @@
 target/
+node_modules/
+.svelte-kit/
+build/
 
 .vscode/*
 !.vscode/settings.json
@@ -7,3 +10,6 @@ target/
 !.env.dev
 
 .docker/prod
+
+# ts-rs generated
+bindings/

@@ -6,7 +6,9 @@ mod result;
 mod state;
 mod user;
 
+use axum::Router;
 use std::env::var;
+use tower_http::services::ServeDir;
 use tracing::info;
 
 // runs inside musl container
@@ -44,10 +46,15 @@ async fn main() -> result::Result {
 
   db::run_migrations().await?;
 
-  let app = axum::Router::new()
-    .merge(ollama::ollama_router())
-    .merge(user::user_router())
-    .merge(chat::chat_router());
+  let app = Router::new()
+    .nest(
+      "/api",
+      Router::new()
+        .merge(ollama::ollama_router())
+        .merge(user::user_router())
+        .merge(chat::chat_router()),
+    )
+    .fallback_service(ServeDir::new("./build"));
 
   let listener = tokio::net::TcpListener::bind((HOST, 3000)).await?;
   info!("listening on: {}", listener.local_addr()?);

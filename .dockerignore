@@ -1,12 +1,16 @@
-# cargo generated
 target/
+node_modules/
+.svelte-kit/
+build/
 
-# docker configs
+.vscode/*
+!.vscode/settings.json
+
 .docker/
 
-# env files
-.env
-.env.dev
+.env*
 
-# git
 .git/
+
+# ts-rs generated
+bindings/

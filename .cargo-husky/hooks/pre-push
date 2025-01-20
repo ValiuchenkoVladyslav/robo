@@ -1,4 +1,4 @@
 #!/bin/sh
 
 echo 'check compile'
-cargo build
+bun run build

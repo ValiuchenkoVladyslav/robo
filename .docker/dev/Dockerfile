@@ -1,4 +1,5 @@
-FROM alpine:3.21.0 AS build
+# https://github.com/oven-sh/bun/issues/6666
+FROM oven/bun:1.1.8-alpine AS build
 
 RUN apk add --no-cache alpine-sdk curl
 
@@ -11,13 +12,17 @@ COPY . /app
 
 WORKDIR /app
 
+# install deps
+RUN bun install
+
 # build the app
-RUN cargo build --release
+RUN bun run scripts.ts build
 
 # final image
 FROM alpine:3.21.0
 
-# copy build output
+# copy build outputs
+COPY --from=build /app/build /app/build
 COPY --from=build /app/target/release/robo /app/robo
 
 # run the app
