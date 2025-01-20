@@ -17,6 +17,7 @@ services:
       - OLLAMA_URL=http://ollama_balancer:8080
       - POSTGRES_URL=postgres://postgres:postgress@postgres:5432/postgres
       - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=jwt_secret
 
     build:
       context: ../../
@@ -38,7 +39,6 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgress
       - POSTGRES_DB=postgres
-      - JWT_SECRET=jwt_secret
 
     volumes: [pgdata:/var/lib/postgresql/data]
 
