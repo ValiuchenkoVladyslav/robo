@@ -8,7 +8,7 @@ mod user;
 
 use axum::Router;
 use std::env::var;
-use tower_http::services::ServeDir;
+use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
 
 // runs inside musl container
@@ -52,7 +52,8 @@ async fn main() -> result::Result {
       Router::new()
         .merge(ollama::ollama_router())
         .merge(user::user_router())
-        .merge(chat::chat_router()),
+        .merge(chat::chat_router())
+        .layer(CorsLayer::permissive()),
     )
     .fallback_service(ServeDir::new("./build"));
 

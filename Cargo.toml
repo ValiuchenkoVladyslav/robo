@@ -14,9 +14,10 @@ ollama = { path = "ollama" }
 tokio = { version = "1.43.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 serde = "1"
 serde_json = "1"
+ts-rs = "10.1"
 thiserror = "2.0"
 axum = { version = "0.8.1", features = ["macros"] }
-tower-http = { version = "0.6.2", features = ["fs"] }
+tower-http = { version = "0.6.2", features = ["fs", "cors"] }
 redis = { version = "0.28.1", features = ["tls-rustls"] }
 dotenv = "0.15.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }
