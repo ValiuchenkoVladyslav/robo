@@ -15,21 +15,25 @@ use sea_query::{Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use sqlx::{query, query_as, Row};
 use tracing::instrument;
+use ts_rs::TS;
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Serialize)]
+#[ts(export, export_to = "./index.ts")]
 pub struct PublicUser {
   id: i32,
   name: String,
   email: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(TS, Debug, Serialize)]
+#[ts(export, export_to = "./index.ts")]
 pub struct AuthUser {
   token: String,
   public_user: PublicUser,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize)]
+#[ts(export, export_to = "./index.ts")]
 pub struct RegisterRequest {
   name: String,
   email: String,
@@ -92,7 +96,8 @@ pub async fn create_user(new_user: Json<RegisterRequest>) -> Result<Json<AuthUse
   }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize)]
+#[ts(export, export_to = "./index.ts")]
 pub struct LoginRequest {
   email: String,
   password: String,

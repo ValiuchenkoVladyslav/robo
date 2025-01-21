@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 
 #[enum_def]
-#[derive(Debug, Deserialize, Serialize, FromRow)]
+#[derive(ts_rs::TS, Debug, Deserialize, Serialize, FromRow)]
+#[ts(export, export_to = "./index.ts")]
 pub struct User {
   pub id: i32,
   pub name: String,

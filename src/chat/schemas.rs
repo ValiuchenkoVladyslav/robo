@@ -7,8 +7,10 @@ use crate::{
 use sea_query::{enum_def, ColumnDef, ForeignKey, PostgresQueryBuilder, Table, Value};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
+use ts_rs::TS;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(TS, Debug, Deserialize, Serialize)]
+#[ts(export, export_to = "./index.ts")]
 pub enum Role {
   User,
   Ai,
@@ -34,7 +36,8 @@ impl From<Role> for Value {
 }
 
 #[enum_def]
-#[derive(Debug, Deserialize, Serialize, FromRow)]
+#[derive(TS, Debug, Deserialize, Serialize, FromRow)]
+#[ts(export, export_to = "./index.ts")]
 pub struct Chat {
   // May be absent when creating a new chat
   #[serde(default)]
@@ -45,7 +48,8 @@ pub struct Chat {
 }
 
 #[enum_def]
-#[derive(Debug, Deserialize, Serialize, FromRow)]
+#[derive(TS, Debug, Deserialize, Serialize, FromRow)]
+#[ts(export, export_to = "./index.ts")]
 pub struct Message {
   // May be absent when creating a new message
   #[serde(default)]
