@@ -91,7 +91,7 @@ pub fn redis() -> &'static Mutex<Redis> {
   &get().redis
 }
 
-/// Increment max user id among all shards returning old value.
+/// Increment max user id among all shards returning current value.
 ///
 /// This functions is intentionally the only way to aquire max user id.
 ///
@@ -102,7 +102,7 @@ pub fn redis() -> &'static Mutex<Redis> {
 /// In worst case scenario (if id is aquired but not used) we will have a gap in ids which
 /// is fine (better than having a collision).
 pub fn fetch_add_max_uid() -> i32 {
-  get().max_uid.fetch_add(1, Ordering::SeqCst)
+  get().max_uid.fetch_add(1, Ordering::SeqCst) + 1
 }
 
 /// Get Postgres shard connection based on user id parity
