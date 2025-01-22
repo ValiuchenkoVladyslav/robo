@@ -1,9 +1,9 @@
 //! User API routes
 
 use crate::{
+  db::{fetch_add_max_uid, postgres},
   jwt::create_jwt,
   result::{Error, Result},
-  state::postgres,
   user::schemas::{User, UserIden},
 };
 use argon2::{
@@ -13,7 +13,7 @@ use argon2::{
 use axum::Json;
 use sea_query::{Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
-use sqlx::{query, query_as, Row};
+use sqlx::{query, query_as};
 use tracing::instrument;
 use ts_rs::TS;
 use validator::Validate;
@@ -49,8 +49,6 @@ pub struct RegisterRequest {
 pub async fn create_user(Json(new_user): Json<RegisterRequest>) -> Result<Json<AuthUser>> {
   new_user.validate()?;
 
-  let db = postgres();
-
   // check if email is taken
   let find_by_email_query = Query::select()
     .from(UserIden::Table)
@@ -58,9 +56,14 @@ pub async fn create_user(Json(new_user): Json<RegisterRequest>) -> Result<Json<A
     .and_where(Expr::col(UserIden::Email).eq(new_user.email.clone()))
     .to_string(PostgresQueryBuilder);
 
-  let cols = query(&find_by_email_query).fetch_optional(db).await?;
+  // query all shards for email
+  let (cols1, cols2) = tokio::join!(
+    query(&find_by_email_query).fetch_optional(postgres(1)),
+    query(&find_by_email_query).fetch_optional(postgres(2)),
+  );
 
-  if cols.is_some() {
+  // if at least one shard failed, we can't be sure if the email is taken
+  if cols1?.is_some() || cols2?.is_some() {
     return Err(Error::EmailTaken); // TODO better errors
   }
 
@@ -73,25 +76,34 @@ pub async fn create_user(Json(new_user): Json<RegisterRequest>) -> Result<Json<A
     .unwrap()
     .to_string();
 
+  let next_uid = fetch_add_max_uid();
+
   // insert new user
   let insert_user_query = Query::insert()
     .into_table(UserIden::Table)
-    .columns([UserIden::Name, UserIden::Email, UserIden::Password])
+    .columns([
+      UserIden::Id,
+      UserIden::Name,
+      UserIden::Email,
+      UserIden::Password,
+    ])
     .values_panic([
+      next_uid.into(),
       new_user.name.clone().into(),
       new_user.email.clone().into(),
       password_hash.into(),
     ])
-    .returning_col(UserIden::Id)
     .to_string(PostgresQueryBuilder);
 
-  let user_id: i32 = query(&insert_user_query).fetch_one(db).await?.get(0);
+  query(&insert_user_query)
+    .execute(postgres(next_uid))
+    .await?;
 
   // return user with token
-  let token = create_jwt(user_id);
+  let token = create_jwt(next_uid);
 
   let public_user = PublicUser {
-    id: user_id,
+    id: next_uid,
     name: new_user.name,
     email: new_user.email,
   };
@@ -112,8 +124,6 @@ pub struct LoginRequest {
 /// login user
 #[instrument(name = "users::login_user")]
 pub async fn login_user(Json(login_request): Json<LoginRequest>) -> Result<Json<AuthUser>> {
-  let db = postgres();
-
   // get user by email
   let find_by_email_query = Query::select()
     .from(UserIden::Table)
@@ -126,9 +136,13 @@ pub async fn login_user(Json(login_request): Json<LoginRequest>) -> Result<Json<
     .and_where(Expr::col(UserIden::Email).eq(login_request.email.clone()))
     .to_string(PostgresQueryBuilder);
 
-  let user: Option<User> = query_as(&find_by_email_query).fetch_optional(db).await?;
+  // query all shards for email
+  let (user1, user2) = tokio::join!(
+    query_as::<_, User>(&find_by_email_query).fetch_optional(postgres(1)),
+    query_as::<_, User>(&find_by_email_query).fetch_optional(postgres(2)),
+  );
 
-  let Some(user) = user else {
+  let Some(user) = user1?.or(user2?) else {
     return Err(Error::Unauthorized);
   };
 

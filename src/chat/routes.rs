@@ -3,9 +3,9 @@
 use super::schemas::{Chat, ChatIden, Message, MessageIden};
 use crate::{
   chat::schemas::Role,
-  db::{get_cached, invalidate_cache, set_cache},
+  db::{cache, postgres},
   result::{Error, Result},
-  state::{ollama, postgres},
+  state::ollama,
   user::auth::Auth,
 };
 use axum::{extract::Path, Json};
@@ -29,11 +29,11 @@ fn messages_cache_key(pref: impl Display) -> String {
 /// get all chats
 #[instrument(name = "chats::get_chats")]
 pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
-  let db = postgres();
+  let db = postgres(user_id);
 
   let redis_key = chats_cache_key(user_id);
 
-  if let Some(cached) = get_cached(&redis_key) {
+  if let Some(cached) = cache::get(&redis_key) {
     return Ok(Json(cached));
   }
 
@@ -50,7 +50,7 @@ pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
 
   let chats: Vec<Chat> = query_as(&chats_query).fetch_all(db).await?;
 
-  set_cache(&redis_key, &chats, 460);
+  cache::set(&redis_key, &chats, 460);
 
   Ok(Json(chats))
 }
@@ -71,7 +71,7 @@ pub async fn create_chat(
 ) -> Result<Json<Chat>> {
   new_chat.validate()?;
 
-  let db = postgres();
+  let db = postgres(user_id);
 
   let create_chat_query = Query::insert()
     .into_table(ChatIden::Table)
@@ -93,7 +93,7 @@ pub async fn create_chat(
     user_id,
   };
 
-  invalidate_cache(&chats_cache_key(user_id));
+  cache::invalidate(&chats_cache_key(user_id));
 
   Ok(Json(new_chat))
 }
@@ -101,7 +101,7 @@ pub async fn create_chat(
 /// edit chat
 #[instrument(name = "chats::edit_chat")]
 pub async fn edit_chat(Auth(user_id): Auth, Json(chat): Json<Chat>) -> Result<()> {
-  let db = postgres();
+  let db = postgres(user_id);
 
   let chat_update_query = Query::update()
     .table(ChatIden::Table)
@@ -119,7 +119,7 @@ pub async fn edit_chat(Auth(user_id): Auth, Json(chat): Json<Chat>) -> Result<()
     return Err(Error::NotFound);
   }
 
-  invalidate_cache(&chats_cache_key(user_id));
+  cache::invalidate(&chats_cache_key(user_id));
 
   Ok(())
 }
@@ -127,7 +127,7 @@ pub async fn edit_chat(Auth(user_id): Auth, Json(chat): Json<Chat>) -> Result<()
 /// delete chat
 #[instrument(name = "chats::delete_chat")]
 pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<()> {
-  let db = postgres();
+  let db = postgres(user_id);
 
   let delete_chat_query = Query::delete()
     .from_table(ChatIden::Table)
@@ -137,7 +137,7 @@ pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<()> 
 
   query(&delete_chat_query).execute(db).await?;
 
-  invalidate_cache(&chats_cache_key(user_id));
+  cache::invalidate(&chats_cache_key(user_id));
 
   Ok(())
 }
@@ -150,11 +150,11 @@ pub async fn get_messages(
 ) -> Result<Json<Vec<Message>>> {
   let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
-  if let Some(cached) = get_cached(&redis_key) {
+  if let Some(cached) = cache::get(&redis_key) {
     return Ok(Json(cached));
   }
 
-  let db = postgres();
+  let db = postgres(user_id);
 
   let get_msgs_query = Query::select()
     .from(MessageIden::Table)
@@ -188,7 +188,7 @@ pub async fn get_messages(
     })
     .collect();
 
-  set_cache(&redis_key, &messages, 460);
+  cache::set(&redis_key, &messages, 460);
 
   Ok(Json(messages))
 }
@@ -206,7 +206,7 @@ pub async fn send_message(
   Path(chat_id): Path<i32>,
   Json(user_msg): Json<SendMessageRequest>,
 ) -> Result<Json<Message>> {
-  let db = postgres();
+  let db = postgres(user_id);
 
   // get chat AI model
   let model_query = Query::select()
@@ -223,7 +223,7 @@ pub async fn send_message(
   // try get messages from cache
   let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
-  let mut messages = get_cached::<Vec<Message>>(&redis_key)
+  let mut messages = cache::get::<Vec<Message>>(&redis_key)
     .unwrap_or_default()
     .into_iter()
     .map(|msg| {
@@ -305,7 +305,7 @@ pub async fn send_message(
     chat_id,
   };
 
-  invalidate_cache(&redis_key);
+  cache::invalidate(&redis_key);
 
   Ok(Json(ai_res))
 }

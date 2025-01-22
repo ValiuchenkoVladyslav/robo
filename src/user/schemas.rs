@@ -20,10 +20,10 @@ pub async fn create_tables(pool: &PgPool) -> Result {
     .table(UserIden::Table)
     .if_not_exists()
     .col(
+      // not using auto increment. instead we rely on internal counter
       ColumnDef::new(UserIden::Id)
         .integer()
         .not_null()
-        .auto_increment()
         .primary_key(),
     )
     .col(ColumnDef::new(UserIden::Name).string().not_null())

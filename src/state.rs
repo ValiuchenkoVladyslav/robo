@@ -1,21 +1,11 @@
-use crate::result::Result;
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use ollama::Ollama;
-use parking_lot::Mutex;
-use redis::Client as Redis;
-use sqlx::PgPool;
 use std::sync::OnceLock;
 use tracing::{info, instrument};
 
 pub struct AppState {
   /// Ollama connection
   pub ollama: Ollama,
-
-  /// Redis connection
-  pub redis: Mutex<Redis>,
-
-  /// Postgres connection pool
-  pub postgres: PgPool,
 
   /// JWT encoding key
   pub jwt_encode: EncodingKey,
@@ -28,17 +18,10 @@ static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
 /// Initialize the app state
 ///
-/// - Creates **Ollama** **Redis** and **Postgres** connections
+/// - Creates **Ollama** connection
 /// - Creates **JWT** encoding & decoding keys
-///
-/// Puts everything into `APP_STATE` static variable. Values can be accessed via `AppState` methods
 #[instrument(name = "AppState::init", skip_all)]
-pub async fn init(
-  ollama_url: String,
-  redis_url: String,
-  postgres_url: String,
-  jwt_secret: String,
-) -> Result {
+pub fn init(ollama_url: String, jwt_secret: String) {
   let state = AppState {
     ollama: {
       let port_pos = ollama_url
@@ -51,8 +34,6 @@ pub async fn init(
 
       Ollama::new(&ollama_url[..port_pos], port)
     },
-    redis: Mutex::new(Redis::open(redis_url)?),
-    postgres: PgPool::connect(&postgres_url).await?,
 
     jwt_encode: EncodingKey::from_secret(jwt_secret.as_bytes()),
     jwt_decode: DecodingKey::from_secret(jwt_secret.as_bytes()),
@@ -63,8 +44,6 @@ pub async fn init(
   if APP_STATE.set(state).is_err() {
     panic!("Failed to initialize the app state!");
   }
-
-  Ok(())
 }
 
 fn get() -> &'static AppState {
@@ -73,16 +52,8 @@ fn get() -> &'static AppState {
     .expect("For some magical reason, the app state is not initialized!")
 }
 
-pub fn postgres() -> &'static PgPool {
-  &get().postgres
-}
-
 pub fn ollama() -> &'static Ollama {
   &get().ollama
-}
-
-pub fn redis() -> &'static Mutex<Redis> {
-  &get().redis
 }
 
 pub fn jwt_encode() -> &'static EncodingKey {

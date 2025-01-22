@@ -39,13 +39,11 @@ async fn main() -> result::Result {
     dotenv::dotenv().ok();
   }
 
+  db::init().await;
   state::init(
     var("OLLAMA_URL").expect("OLLAMA_URL env var"),
-    var("REDIS_URL").expect("REDIS_URL env var"),
-    var("POSTGRES_URL").expect("POSTGRES_URL env"),
     var("JWT_SECRET").expect("JWT_SECRET env"),
-  )
-  .await?;
+  );
 
   db::run_migrations().await?;
 
