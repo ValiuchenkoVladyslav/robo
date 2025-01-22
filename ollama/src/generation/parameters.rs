@@ -43,9 +43,7 @@ impl JsonStructure {
     let generator = settings.into_generator();
     let schema = generator.into_root_schema_for::<T>();
 
-    Self {
-      schema,
-    }
+    Self { schema }
   }
 }
 
@@ -65,10 +63,7 @@ impl Serialize for KeepAlive {
     match self {
       KeepAlive::Indefinitely => serializer.serialize_i8(-1),
       KeepAlive::UnloadOnCompletion => serializer.serialize_i8(0),
-      KeepAlive::Until {
-        time,
-        unit,
-      } => {
+      KeepAlive::Until { time, unit } => {
         let mut s = String::new();
         s.push_str(&time.to_string());
         s.push_str(unit.to_symbol());

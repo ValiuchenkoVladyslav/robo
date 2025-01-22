@@ -108,10 +108,7 @@ pub async fn create_user(Json(new_user): Json<RegisterRequest>) -> Result<Json<A
     email: new_user.email,
   };
 
-  Ok(Json(AuthUser {
-    token,
-    public_user,
-  }))
+  Ok(Json(AuthUser { token, public_user }))
 }
 
 #[derive(TS, Debug, Deserialize)]
@@ -168,8 +165,5 @@ pub async fn login_user(Json(login_request): Json<LoginRequest>) -> Result<Json<
     email: user.email,
   };
 
-  Ok(Json(AuthUser {
-    token,
-    public_user,
-  }))
+  Ok(Json(AuthUser { token, public_user }))
 }

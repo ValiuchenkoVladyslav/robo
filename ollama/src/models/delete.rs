@@ -5,9 +5,7 @@ use crate::{error::OllamaError, Ollama};
 impl Ollama {
   /// Delete a model and its data.
   pub async fn delete_model(&self, model_name: String) -> crate::error::Result<()> {
-    let request = DeleteModelRequest {
-      model_name,
-    };
+    let request = DeleteModelRequest { model_name };
 
     let url = format!("{}api/delete", self.url_str());
     let serialized = serde_json::to_string(&request)?;
