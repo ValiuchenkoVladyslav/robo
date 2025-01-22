@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state;
 use jsonwebtoken::{decode, encode, errors::Result as JwtResult, Algorithm, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -21,12 +21,12 @@ pub fn create_jwt(id: i32) -> String {
       id,
       exp: (time_now + JWT_EXP).as_secs(),
     },
-    AppState::jwt_encode(),
+    state::jwt_encode(),
   )
   .unwrap()
 }
 
 pub fn validate_jwt(token: &str) -> JwtResult<i32> {
-  decode::<Claims>(token, AppState::jwt_decode(), &Validation::new(JWT_ALGO))
+  decode::<Claims>(token, state::jwt_decode(), &Validation::new(JWT_ALGO))
     .map(|data| data.claims.id)
 }

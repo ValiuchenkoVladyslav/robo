@@ -1,11 +1,11 @@
 //! Ollama API
 
-use crate::{result::Result, state::AppState};
+use crate::{result::Result, state::ollama};
 use axum::{routing::get, Json, Router};
 use ollama::models::LocalModel;
 
 async fn get_models() -> Result<Json<Vec<LocalModel>>> {
-  let ollama = AppState::ollama();
+  let ollama = ollama();
 
   let models = ollama.list_local_models().await?;
 

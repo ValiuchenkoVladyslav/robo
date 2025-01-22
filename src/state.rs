@@ -7,8 +7,6 @@ use sqlx::PgPool;
 use std::sync::OnceLock;
 use tracing::{info, instrument};
 
-static APP_STATE: OnceLock<AppState> = OnceLock::new();
-
 pub struct AppState {
   /// Ollama connection
   pub ollama: Ollama,
@@ -26,71 +24,71 @@ pub struct AppState {
   pub jwt_decode: DecodingKey,
 }
 
-impl AppState {
-  /// Initialize the app state
-  ///
-  /// - Creates **Ollama** **Redis** and **Postgres** connections
-  /// - Creates **JWT** encoding & decoding keys
-  ///
-  /// Puts everything into `APP_STATE` static variable. Values can be accessed via `AppState` methods
-  #[instrument(name = "AppState::init", skip_all)]
-  pub async fn init(
-    ollama_url: String,
-    redis_url: String,
-    postgres_url: String,
-    jwt_secret: String,
-  ) -> Result {
-    let state = AppState {
-      ollama: {
-        let port_pos = ollama_url
-          .rfind(':')
-          .expect("OLLAMA_URL must contain a port!");
+static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
-        let port = ollama_url[port_pos + 1..]
-          .parse()
-          .expect("OLLAMA_URL port must be a number!");
+/// Initialize the app state
+///
+/// - Creates **Ollama** **Redis** and **Postgres** connections
+/// - Creates **JWT** encoding & decoding keys
+///
+/// Puts everything into `APP_STATE` static variable. Values can be accessed via `AppState` methods
+#[instrument(name = "AppState::init", skip_all)]
+pub async fn init(
+  ollama_url: String,
+  redis_url: String,
+  postgres_url: String,
+  jwt_secret: String,
+) -> Result {
+  let state = AppState {
+    ollama: {
+      let port_pos = ollama_url
+        .rfind(':')
+        .expect("OLLAMA_URL must contain a port!");
 
-        Ollama::new(&ollama_url[..port_pos], port)
-      },
-      redis: Mutex::new(Redis::open(redis_url)?),
-      postgres: PgPool::connect(&postgres_url).await?,
+      let port = ollama_url[port_pos + 1..]
+        .parse()
+        .expect("OLLAMA_URL port must be a number!");
 
-      jwt_encode: EncodingKey::from_secret(jwt_secret.as_bytes()),
-      jwt_decode: DecodingKey::from_secret(jwt_secret.as_bytes()),
-    };
+      Ollama::new(&ollama_url[..port_pos], port)
+    },
+    redis: Mutex::new(Redis::open(redis_url)?),
+    postgres: PgPool::connect(&postgres_url).await?,
 
-    info!("Ollama, Redis, Postgres connections established");
+    jwt_encode: EncodingKey::from_secret(jwt_secret.as_bytes()),
+    jwt_decode: DecodingKey::from_secret(jwt_secret.as_bytes()),
+  };
 
-    if APP_STATE.set(state).is_err() {
-      panic!("Failed to initialize the app state!");
-    }
+  info!("Ollama, Redis, Postgres connections established");
 
-    Ok(())
+  if APP_STATE.set(state).is_err() {
+    panic!("Failed to initialize the app state!");
   }
 
-  fn get() -> &'static AppState {
-    APP_STATE
-      .get()
-      .expect("For some magical reason, the app state is not initialized!")
-  }
+  Ok(())
+}
 
-  pub fn db() -> &'static PgPool {
-    &AppState::get().postgres
-  }
+fn get() -> &'static AppState {
+  APP_STATE
+    .get()
+    .expect("For some magical reason, the app state is not initialized!")
+}
 
-  pub fn ollama() -> &'static Ollama {
-    &AppState::get().ollama
-  }
+pub fn postgres() -> &'static PgPool {
+  &get().postgres
+}
 
-  pub fn redis() -> &'static Mutex<Redis> {
-    &AppState::get().redis
-  }
+pub fn ollama() -> &'static Ollama {
+  &get().ollama
+}
 
-  pub fn jwt_encode() -> &'static EncodingKey {
-    &AppState::get().jwt_encode
-  }
+pub fn redis() -> &'static Mutex<Redis> {
+  &get().redis
+}
 
-  pub fn jwt_decode() -> &'static DecodingKey {
-    &AppState::get().jwt_decode
-  }
+pub fn jwt_encode() -> &'static EncodingKey {
+  &get().jwt_encode
+}
+
+pub fn jwt_decode() -> &'static DecodingKey {
+  &get().jwt_decode
 }

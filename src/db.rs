@@ -2,18 +2,18 @@
 
 use crate::{
   chat::schemas::create_tables as create_chat_tables,
-  result::{Error, Result},
-  state,
+  result::Result,
+  state::{postgres, redis},
   user::schemas::create_tables as create_user_tables,
 };
 use redis::Commands;
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::{from_str as from_json_str, to_string as to_json_string};
+use serde_json as json;
 use tracing::{debug, error, info, instrument};
 
 #[instrument]
 pub async fn run_migrations() -> Result {
-  let db = state::AppState::db();
+  let db = postgres();
 
   info!("Running user migrations");
   create_user_tables(db).await?;
@@ -25,25 +25,38 @@ pub async fn run_migrations() -> Result {
 }
 
 #[instrument]
-pub fn get_cached<T: DeserializeOwned>(key: &str) -> Result<T> {
-  let cached = state::AppState::redis().lock().get::<_, String>(&key);
+pub fn get_cached<T: DeserializeOwned>(key: &str) -> Option<T> {
+  let cached = redis().lock().get::<_, String>(&key);
 
   let Ok(cached) = cached else {
     debug!("cache miss");
-    return Err(Error::NotFound);
+    return None;
   };
 
   debug!("cache hit");
 
-  Ok(from_json_str(&cached)?)
+  match json::from_str(&cached) {
+    Ok(v) => Some(v),
+    Err(e) => {
+      error!("{e}");
+
+      None
+    }
+  }
 }
 
 #[instrument(skip(value))]
 pub fn set_cache(key: &str, value: impl Serialize, ex: u64) {
-  let res =
-    state::AppState::redis()
-      .lock()
-      .set_ex::<_, _, ()>(key, to_json_string(&value).unwrap(), ex);
+  let value = match json::to_string(&value) {
+    Ok(v) => v,
+    Err(e) => {
+      error!("{e}");
+
+      return;
+    }
+  };
+
+  let res = redis().lock().set_ex::<_, _, ()>(key, value, ex);
 
   // set chache errors should not impact the main flow
   if let Err(e) = res {
@@ -57,7 +70,7 @@ pub fn invalidate_cache(key: &str) {
   let key = key.to_string();
 
   tokio::spawn(async move {
-    let res = state::AppState::redis().lock().del::<_, ()>(key);
+    let res = redis().lock().del::<_, ()>(key);
 
     if let Err(e) = res {
       error!("{e}");
