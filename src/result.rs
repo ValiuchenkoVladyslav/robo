@@ -20,6 +20,9 @@ pub enum Error {
   #[error("DB error: {0}")]
   Db(#[from] sqlx::Error),
 
+  #[error("Validation error: {0}")]
+  Validation(#[from] validator::ValidationErrors),
+
   #[error("Not Found")]
   NotFound,
 
@@ -39,6 +42,7 @@ impl IntoResponse for Error {
       Error::NotFound => StatusCode::NOT_FOUND,
       Error::EmailTaken => StatusCode::CONFLICT,
       Error::Unauthorized => StatusCode::UNAUTHORIZED,
+      Error::Validation(_) => StatusCode::BAD_REQUEST,
       _ => StatusCode::INTERNAL_SERVER_ERROR,
     };
 

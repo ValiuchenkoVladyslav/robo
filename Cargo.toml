@@ -26,6 +26,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
 jsonwebtoken = "9"
 argon2 = "0.5.3"
+validator = { version = "0.20", features = ["derive"] }
 
 [dev-dependencies.cargo-husky]
 version = "1"

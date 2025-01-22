@@ -3,7 +3,7 @@
 use crate::{
   jwt::create_jwt,
   result::{Error, Result},
-  state::AppState,
+  state::postgres,
   user::schemas::{User, UserIden},
 };
 use argon2::{
@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{query, query_as, Row};
 use tracing::instrument;
 use ts_rs::TS;
+use validator::Validate;
 
 #[derive(TS, Debug, Serialize)]
 #[ts(export, export_to = "./index.ts")]
@@ -32,18 +33,23 @@ pub struct AuthUser {
   public_user: PublicUser,
 }
 
-#[derive(TS, Debug, Deserialize)]
+#[derive(TS, Debug, Deserialize, Validate)]
 #[ts(export, export_to = "./index.ts")]
 pub struct RegisterRequest {
+  #[validate(length(min = 3, max = 255))]
   name: String,
+  #[validate(email)]
   email: String,
+  #[validate(length(min = 6, max = 255))]
   password: String,
 }
 
 /// create new user
 #[instrument(name = "users::create_user")]
-pub async fn create_user(new_user: Json<RegisterRequest>) -> Result<Json<AuthUser>> {
-  let db = AppState::db();
+pub async fn create_user(Json(new_user): Json<RegisterRequest>) -> Result<Json<AuthUser>> {
+  new_user.validate()?;
+
+  let db = postgres();
 
   // check if email is taken
   let find_by_email_query = Query::select()
@@ -86,8 +92,8 @@ pub async fn create_user(new_user: Json<RegisterRequest>) -> Result<Json<AuthUse
 
   let public_user = PublicUser {
     id: user_id,
-    name: new_user.name.clone(),
-    email: new_user.email.clone(),
+    name: new_user.name,
+    email: new_user.email,
   };
 
   Ok(Json(AuthUser {
@@ -105,8 +111,8 @@ pub struct LoginRequest {
 
 /// login user
 #[instrument(name = "users::login_user")]
-pub async fn login_user(login_request: Json<LoginRequest>) -> Result<Json<AuthUser>> {
-  let db = AppState::db();
+pub async fn login_user(Json(login_request): Json<LoginRequest>) -> Result<Json<AuthUser>> {
+  let db = postgres();
 
   // get user by email
   let find_by_email_query = Query::select()
@@ -144,8 +150,8 @@ pub async fn login_user(login_request: Json<LoginRequest>) -> Result<Json<AuthUs
 
   let public_user = PublicUser {
     id: user.id,
-    name: user.name.clone(),
-    email: user.email.clone(),
+    name: user.name,
+    email: user.email,
   };
 
   Ok(Json(AuthUser {

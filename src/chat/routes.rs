@@ -5,7 +5,7 @@ use crate::{
   chat::schemas::Role,
   db::{get_cached, invalidate_cache, set_cache},
   result::{Error, Result},
-  state::AppState,
+  state::{ollama, postgres},
   user::auth::Auth,
 };
 use axum::{extract::Path, Json};
@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{query, query_as, Row};
 use std::fmt::Display;
 use tracing::instrument;
+use ts_rs::TS;
+use validator::Validate;
 
 fn chats_cache_key(pref: impl Display) -> String {
   format!("{pref}:get_chats")
@@ -27,11 +29,11 @@ fn messages_cache_key(pref: impl Display) -> String {
 /// get all chats
 #[instrument(name = "chats::get_chats")]
 pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
-  let db = AppState::db();
+  let db = postgres();
 
   let redis_key = chats_cache_key(user_id);
 
-  if let Ok(cached) = get_cached(&redis_key) {
+  if let Some(cached) = get_cached(&redis_key) {
     return Ok(Json(cached));
   }
 
@@ -53,8 +55,10 @@ pub async fn get_chats(Auth(user_id): Auth) -> Result<Json<Vec<Chat>>> {
   Ok(Json(chats))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, TS, Deserialize, Validate)]
+#[ts(export, export_to = "./index.ts")]
 pub struct CreateChatRequest {
+  #[validate(length(min = 3, max = 255))]
   title: String,
   model: String,
 }
@@ -65,7 +69,9 @@ pub async fn create_chat(
   Auth(user_id): Auth,
   Json(new_chat): Json<CreateChatRequest>,
 ) -> Result<Json<Chat>> {
-  let db = AppState::db();
+  new_chat.validate()?;
+
+  let db = postgres();
 
   let create_chat_query = Query::insert()
     .into_table(ChatIden::Table)
@@ -82,8 +88,8 @@ pub async fn create_chat(
 
   let new_chat = Chat {
     id: chat_id,
-    title: new_chat.title.clone(),
-    model: new_chat.model.clone(),
+    title: new_chat.title,
+    model: new_chat.model,
     user_id,
   };
 
@@ -94,15 +100,14 @@ pub async fn create_chat(
 
 /// edit chat
 #[instrument(name = "chats::edit_chat")]
-#[axum::debug_handler]
-pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<()> {
-  let db = AppState::db();
+pub async fn edit_chat(Auth(user_id): Auth, Json(chat): Json<Chat>) -> Result<()> {
+  let db = postgres();
 
   let chat_update_query = Query::update()
     .table(ChatIden::Table)
     .values([
-      (ChatIden::Title, chat.title.clone().into()),
-      (ChatIden::Model, chat.model.clone().into()),
+      (ChatIden::Title, chat.title.into()),
+      (ChatIden::Model, chat.model.into()),
     ])
     .and_where(Expr::col(ChatIden::Id).eq(chat.id))
     .and_where(Expr::col(ChatIden::UserId).eq(user_id))
@@ -122,7 +127,7 @@ pub async fn edit_chat(Auth(user_id): Auth, chat: Json<Chat>) -> Result<()> {
 /// delete chat
 #[instrument(name = "chats::delete_chat")]
 pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<()> {
-  let db = AppState::db();
+  let db = postgres();
 
   let delete_chat_query = Query::delete()
     .from_table(ChatIden::Table)
@@ -139,16 +144,17 @@ pub async fn delete_chat(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<()> 
 
 /// get chat messages
 #[instrument(name = "chats::get_messages")]
-pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Json<Vec<Message>>> {
-  let db = AppState::db();
-
-  let chat_id = chat_id.0;
-
+pub async fn get_messages(
+  Auth(user_id): Auth,
+  Path(chat_id): Path<i32>,
+) -> Result<Json<Vec<Message>>> {
   let redis_key = messages_cache_key(format!("{chat_id}-{user_id}"));
 
-  if let Ok(cached) = get_cached(&redis_key) {
+  if let Some(cached) = get_cached(&redis_key) {
     return Ok(Json(cached));
   }
+
+  let db = postgres();
 
   let get_msgs_query = Query::select()
     .from(MessageIden::Table)
@@ -166,9 +172,9 @@ pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Jso
     .order_by(MessageIden::Id, Order::Asc)
     .to_string(PostgresQueryBuilder);
 
-  let rows = query(&get_msgs_query).fetch_all(db).await?;
-
-  let messages = rows
+  let messages = query(&get_msgs_query)
+    .fetch_all(db)
+    .await?
     .into_iter()
     .filter_map(|row| {
       let msg = Message {
@@ -187,7 +193,8 @@ pub async fn get_messages(Auth(user_id): Auth, chat_id: Path<i32>) -> Result<Jso
   Ok(Json(messages))
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, TS, Deserialize, Serialize)]
+#[ts(export, export_to = "./index.ts")]
 pub struct SendMessageRequest {
   text: String,
 }
@@ -197,12 +204,9 @@ pub struct SendMessageRequest {
 pub async fn send_message(
   Auth(user_id): Auth,
   Path(chat_id): Path<i32>,
-  user_msg: Json<SendMessageRequest>,
+  Json(user_msg): Json<SendMessageRequest>,
 ) -> Result<Json<Message>> {
-  let db = AppState::db();
-  let ollama = AppState::ollama();
-
-  let user_msg = user_msg.text.clone();
+  let db = postgres();
 
   // get chat AI model
   let model_query = Query::select()
@@ -269,7 +273,9 @@ pub async fn send_message(
   }
 
   // send chat messages to ollama
-  ollama
+  let user_msg = user_msg.text;
+
+  ollama()
     .send_chat_messages_with_history(
       &mut messages,
       ChatMessageRequest::new(chat_model, vec![ChatMessage::user(user_msg.clone())]),
@@ -282,7 +288,7 @@ pub async fn send_message(
   let insert_msgs_query = Query::insert()
     .into_table(MessageIden::Table)
     .columns([MessageIden::Text, MessageIden::Role, MessageIden::ChatId])
-    .values_panic([user_msg.clone().into(), Role::User.into(), chat_id.into()])
+    .values_panic([user_msg.into(), Role::User.into(), chat_id.into()])
     .values_panic([
       ai_res.content.clone().into(),
       Role::Ai.into(),
