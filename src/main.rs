@@ -7,7 +7,10 @@ mod state;
 mod user;
 
 use axum::Router;
-use std::env::var;
+use std::{
+  env::{current_exe, var},
+  path::Path,
+};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
 
@@ -36,7 +39,7 @@ async fn main() -> result::Result {
     dotenv::dotenv().ok();
   }
 
-  state::AppState::init(
+  state::init(
     var("OLLAMA_URL").expect("OLLAMA_URL env var"),
     var("REDIS_URL").expect("REDIS_URL env var"),
     var("POSTGRES_URL").expect("POSTGRES_URL env"),
@@ -45,6 +48,11 @@ async fn main() -> result::Result {
   .await?;
 
   db::run_migrations().await?;
+
+  let static_dir = current_exe()?
+    .parent()
+    .unwrap_or_else(|| Path::new("."))
+    .join("build");
 
   let app = Router::new()
     .nest(
@@ -55,7 +63,7 @@ async fn main() -> result::Result {
         .merge(chat::chat_router())
         .layer(CorsLayer::permissive()),
     )
-    .fallback_service(ServeDir::new("./build"));
+    .fallback_service(ServeDir::new(static_dir));
 
   let listener = tokio::net::TcpListener::bind((HOST, 3000)).await?;
   info!("listening on: {}", listener.local_addr()?);
