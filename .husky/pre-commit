@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cargo clippy --fix
+cargo clippy
 cargo fmt
