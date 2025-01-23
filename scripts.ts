@@ -8,7 +8,7 @@ if (Bun.argv[2] === "build") {
 
   await Promise.all([
     // build frontend
-    $`bunx --bun vite build`,
+    $`cd frontend && bun run build`,
 
     // build backend
     $`cargo build --release`,
@@ -16,7 +16,7 @@ if (Bun.argv[2] === "build") {
 } else if (Bun.argv[2] === "dev") {
   await Promise.all([
     // start frontend dev server
-    $`bun vite dev`,
+    $`cd frontend && bun run dev`,
 
     // run backend in watch mode
     $`cargo watch -c -w src -x test -x run`,

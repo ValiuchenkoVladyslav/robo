@@ -11,7 +11,10 @@ use std::{
   env::{current_exe, var},
   path::Path,
 };
-use tower_http::{cors::CorsLayer, services::ServeDir};
+use tower_http::{
+  cors::CorsLayer,
+  services::{ServeDir, ServeFile},
+};
 use tracing::info;
 
 // runs inside musl container
@@ -47,11 +50,6 @@ async fn main() -> result::Result {
 
   db::run_migrations().await?;
 
-  let static_dir = current_exe()?
-    .parent()
-    .unwrap_or_else(|| Path::new("."))
-    .join("build");
-
   let app = Router::new()
     .nest(
       "/api",
@@ -61,7 +59,14 @@ async fn main() -> result::Result {
         .merge(chat::chat_router())
         .layer(CorsLayer::permissive()),
     )
-    .fallback_service(ServeDir::new(static_dir));
+    .fallback_service({
+      let static_dir = current_exe()?
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("build");
+
+      ServeDir::new(&static_dir).fallback(ServeFile::new(static_dir.join("index.html")))
+    });
 
   let listener = tokio::net::TcpListener::bind((HOST, 3000)).await?;
   info!("listening on: {}", listener.local_addr()?);

@@ -2,3 +2,4 @@
 
 cargo clippy
 cargo fmt
+cd frontend && bun lint
