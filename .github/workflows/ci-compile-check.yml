@@ -20,6 +20,8 @@ jobs:
         with:
           bun-version: latest
 
+      - run: bun install
+
       - name: Check if project compiles
         run: bun run build
 
@@ -33,6 +35,8 @@ jobs:
         with:
           bun-version: latest
 
+      - run: bun install
+
       - name: Check if project compiles
         run: bun run build
 
@@ -45,6 +49,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - run: bun install
 
       - name: Check if project compiles
         run: bun run build

@@ -21,3 +21,8 @@ jobs:
 
       - name: Check fmt
         run: cargo fmt -- --check
+
+      - run: bun install
+
+      - name: Check eslint
+        run: cd frontend && bun lint
