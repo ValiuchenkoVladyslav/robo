@@ -22,6 +22,10 @@ jobs:
       - name: Check fmt
         run: cargo fmt -- --check
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - run: bun install
 
       - name: Check eslint
