@@ -14,7 +14,7 @@ tokio-stream = { version = "0.1.15", optional = true }
 url = "2"
 async-stream = "0.3.5"
 schemars = { version = "0.8.21", features = ["preserve_order"] }
-thiserror = "2.0.9"
+thiserror = "2.0.12"
 
 [features]
 stream = ["tokio-stream", "reqwest/stream"]
