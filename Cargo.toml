@@ -21,7 +21,7 @@ tower-http = { version = "0.6.2", features = ["fs", "cors"] }
 redis = { version = "0.29.5", features = ["tls-rustls"] }
 dotenv = "0.15.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }
-sea-query = { version = "0.32.3", default-features = false, features = ["derive", "backend-postgres"] }
+sea-query = { version = "0.32.4", default-features = false, features = ["derive", "backend-postgres"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["ansi", "fmt", "smallvec", "std", "parking_lot"] }
 jsonwebtoken = "9"
