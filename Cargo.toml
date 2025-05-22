@@ -11,14 +11,14 @@ members = [
 [dependencies]
 parking_lot = { version = "0.12", features = ["hardware-lock-elision"] }
 ollama = { path = "ollama" }
-tokio = { version = "1.44.2", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
+tokio = { version = "1.45.0", features = ["rt-multi-thread", "parking_lot", "macros", "net"] }
 serde = "1"
 serde_json = "1"
 ts-rs = "10.1"
 thiserror = "2.0"
 axum = { version = "0.8.3", features = ["macros"] }
 tower-http = { version = "0.6.4", features = ["fs", "cors"] }
-redis = { version = "0.30.0", features = ["tls-rustls"] }
+redis = { version = "0.31.0", features = ["tls-rustls"] }
 dotenv = "0.15.0"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-native-roots", "macros", "postgres"] }
 sea-query = { version = "0.32.4", default-features = false, features = ["derive", "backend-postgres"] }
